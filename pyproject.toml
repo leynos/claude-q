@@ -1,15 +1,32 @@
 [project]
 name = "claude-q"
 version = "0.1.0"
-description = "claude-q package"
+description = "Topic-based FIFO queues for Claude Code"
 readme = "README.md"
 requires-python = ">=3.13"
 license = { text = "ISC" }
-dependencies = []
+dependencies = [
+    "cyclopts>=2.9",
+    "plumbum",
+]
+
+[project.optional-dependencies]
+installer = ["json5kit"]
+
+[project.scripts]
+q = "claude_q.cli:main"
+git-q = "claude_q.cli:git_q_main"
+q-stop-hook = "claude_q.hooks.stop:main"
+q-prompt-hook = "claude_q.hooks.prompt:main"
+q-install-hooks = "claude_q.installer.install:main"
+q-uninstall-hooks = "claude_q.installer.uninstall:main"
 
 [dependency-groups]
 dev = [
     "pytest",
+    "pytest-mock",
+    "cmd-mox",
+    "json5kit",
     "ruff",
     "pyright",
     "pytest-timeout",
