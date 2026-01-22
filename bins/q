@@ -1,0 +1,507 @@
+#!/usr/bin/env python3
+"""
+q: topic-based queues backed by the local filesystem.
+
+Design goals:
+- Every topic is its own FIFO queue.
+- All operations are safe under contention using advisory file locks (flock).
+- `get` is non-blocking by default; `--block` polls until a message exists.
+- Timeouts are deliberately omitted; compose with `timeout(1)` from coreutils.
+
+Storage layout (default):
+  ${XDG_STATE_HOME:-~/.local/state}/q/
+    <topic>.json        # data
+    <topic>.lock        # lock (never replaced)
+
+Override storage directory with:
+  Q_DIR=/some/path q ...
+or
+  q --dir /some/path ...
+
+This tool aims to be boring and script-friendly.
+"""
+
+from __future__ import annotations
+
+import argparse
+import contextlib
+import datetime as _dt
+import fcntl
+import hashlib
+import json
+import os
+import re
+import shlex
+import subprocess
+import sys
+import tempfile
+import time
+import uuid
+import urllib.parse
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Iterator, MutableMapping
+
+
+_VERSION = "0.1.0"
+
+
+def _default_base_dir() -> Path:
+    # Prefer explicit env var, then XDG state, then ~/.local/state
+    if (p := os.environ.get("Q_DIR")):
+        return Path(p).expanduser()
+    if (p := os.environ.get("XDG_STATE_HOME")):
+        return (Path(p).expanduser() / "q")
+    return (Path.home() / ".local" / "state" / "q")
+
+
+_ALLOWED_TOPIC_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-"
+
+
+def _topic_to_filename(topic: str) -> str:
+    """
+    Convert an arbitrary topic string into a safe filename component.
+
+    We percent-encode everything except a conservative safe set.
+    For very long topics we append a hash to keep filenames manageable.
+    """
+    t = topic.strip()
+    if not t:
+        raise ValueError("topic is empty")
+
+    safe = urllib.parse.quote(t, safe=_ALLOWED_TOPIC_CHARS)
+    safe = safe.strip(".")  # avoid '.' or '..' shenanigans
+    if not safe:
+        safe = hashlib.sha256(t.encode("utf-8")).hexdigest()[:16]
+
+    # Keep under common filesystem limits (255 bytes). Leave room for suffixes.
+    if len(safe) > 180:
+        h = hashlib.sha256(t.encode("utf-8")).hexdigest()[:16]
+        safe = f"{safe[:150]}__{h}"
+    return safe
+
+
+def _utc_now_iso() -> str:
+    return _dt.datetime.now(tz=_dt.timezone.utc).isoformat(timespec="seconds")
+
+
+def _summarise(content: str, width: int = 80) -> str:
+    # First line, whitespace-collapsed.
+    lines = content.splitlines()
+    first = lines[0] if lines else ""
+    first = re.sub(r"\s+", " ", first.strip())
+    if not first:
+        first = "(empty)"
+
+    more = len(lines) > 1
+    # Reserve 1 char for ellipsis if needed.
+    if len(first) > width:
+        return first[: max(0, width - 1)] + "…"
+    if more and len(first) <= width - 2:
+        return first + " …"
+    if more:
+        return first[: max(0, width - 1)] + "…"
+    return first
+
+
+@dataclass(frozen=True)
+class TopicPaths:
+    data: Path
+    lock: Path
+
+
+class QueueStore:
+    def __init__(self, base_dir: Path):
+        self.base_dir = base_dir
+
+    def ensure_base_dir(self) -> None:
+        self.base_dir.mkdir(parents=True, exist_ok=True)
+        # Best-effort permissions tightening; don't explode on weird FS.
+        try:
+            self.base_dir.chmod(0o700)
+        except OSError:
+            pass
+
+    def paths_for_topic(self, topic: str) -> TopicPaths:
+        safe = _topic_to_filename(topic)
+        return TopicPaths(
+            data=(self.base_dir / f"{safe}.json"),
+            lock=(self.base_dir / f"{safe}.lock"),
+        )
+
+    @contextlib.contextmanager
+    def lock_topic(self, topic: str, *, exclusive: bool) -> Iterator[None]:
+        """
+        Lock a topic via its dedicated lock file.
+
+        We lock the lock file (never replaced), so we can safely replace the data file atomically.
+        """
+        self.ensure_base_dir()
+        paths = self.paths_for_topic(topic)
+        # 'a+' so it exists; do not truncate.
+        with open(paths.lock, "a+", encoding="utf-8") as lf:
+            try:
+                lf.flush()
+                fcntl.flock(lf.fileno(), fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH)
+                yield
+            finally:
+                try:
+                    fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
+                except OSError:
+                    # If something truly odd happens, we still want to close.
+                    pass
+
+    def _load_messages_unlocked(self, topic: str) -> list[dict[str, Any]]:
+        paths = self.paths_for_topic(topic)
+        if not paths.data.exists():
+            return []
+        try:
+            raw = paths.data.read_text(encoding="utf-8")
+        except FileNotFoundError:
+            return []
+        if not raw.strip():
+            return []
+        try:
+            data = json.loads(raw)
+        except json.JSONDecodeError as e:
+            raise RuntimeError(f"corrupt queue file for topic {topic!r}: {paths.data}") from e
+
+        if isinstance(data, dict) and "messages" in data:
+            msgs = data["messages"]
+        else:
+            # Back-compat: allow bare list.
+            msgs = data
+
+        if not isinstance(msgs, list):
+            raise RuntimeError(f"corrupt queue file for topic {topic!r}: {paths.data} (messages not a list)")
+        # Validate minimally.
+        out: list[dict[str, Any]] = []
+        for m in msgs:
+            if not isinstance(m, dict):
+                continue
+            if "uuid" not in m or "content" not in m:
+                continue
+            out.append(m)
+        return out
+
+    def _save_messages_unlocked(self, topic: str, messages: list[dict[str, Any]]) -> None:
+        paths = self.paths_for_topic(topic)
+        self.ensure_base_dir()
+        payload: MutableMapping[str, Any] = {
+            "version": 1,
+            "topic": topic,
+            "messages": messages,
+        }
+        # Atomic write: write temp then replace. We lock via lock file.
+        tmp_fd, tmp_name = tempfile.mkstemp(prefix=paths.data.name + ".", suffix=".tmp", dir=str(self.base_dir))
+        tmp_path = Path(tmp_name)
+        try:
+            with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
+                json.dump(payload, f, ensure_ascii=False, indent=2)
+                f.write("\n")
+                f.flush()
+                os.fsync(f.fileno())
+            # Tighten permissions before replace (best-effort).
+            try:
+                tmp_path.chmod(0o600)
+            except OSError:
+                pass
+            os.replace(tmp_path, paths.data)
+        finally:
+            # If replace failed, try to clean up.
+            try:
+                if tmp_path.exists():
+                    tmp_path.unlink()
+            except OSError:
+                pass
+
+    # High-level operations (each takes responsibility for locking).
+
+    def append(self, topic: str, content: str) -> str:
+        msg = {"uuid": str(uuid.uuid4()), "created": _utc_now_iso(), "content": content}
+        with self.lock_topic(topic, exclusive=True):
+            msgs = self._load_messages_unlocked(topic)
+            msgs.append(msg)
+            self._save_messages_unlocked(topic, msgs)
+        return msg["uuid"]
+
+    def pop_first(self, topic: str) -> dict[str, Any] | None:
+        with self.lock_topic(topic, exclusive=True):
+            msgs = self._load_messages_unlocked(topic)
+            if not msgs:
+                return None
+            msg = msgs.pop(0)
+            self._save_messages_unlocked(topic, msgs)
+            return msg
+
+    def peek_first(self, topic: str) -> dict[str, Any] | None:
+        with self.lock_topic(topic, exclusive=False):
+            msgs = self._load_messages_unlocked(topic)
+            return msgs[0] if msgs else None
+
+    def get_by_uuid(self, topic: str, uid: str) -> dict[str, Any] | None:
+        with self.lock_topic(topic, exclusive=False):
+            msgs = self._load_messages_unlocked(topic)
+            for m in msgs:
+                if m.get("uuid") == uid:
+                    return m
+            return None
+
+    def list_messages(self, topic: str) -> list[dict[str, Any]]:
+        with self.lock_topic(topic, exclusive=False):
+            return list(self._load_messages_unlocked(topic))
+
+    def delete_by_uuid(self, topic: str, uid: str) -> bool:
+        with self.lock_topic(topic, exclusive=True):
+            msgs = self._load_messages_unlocked(topic)
+            new_msgs = [m for m in msgs if m.get("uuid") != uid]
+            if len(new_msgs) == len(msgs):
+                return False
+            self._save_messages_unlocked(topic, new_msgs)
+            return True
+
+    def replace_by_uuid(self, topic: str, uid: str, content: str) -> bool:
+        with self.lock_topic(topic, exclusive=True):
+            msgs = self._load_messages_unlocked(topic)
+            for m in msgs:
+                if m.get("uuid") == uid:
+                    m["content"] = content
+                    m["updated"] = _utc_now_iso()
+                    self._save_messages_unlocked(topic, msgs)
+                    return True
+            return False
+
+
+def _editor_cmd() -> list[str]:
+    editor = os.environ.get("VISUAL") or os.environ.get("EDITOR") or "vi"
+    # Allow things like: "code --wait"
+    try:
+        return shlex.split(editor)
+    except ValueError:
+        return [editor]
+
+
+def _edit_text(initial: str = "") -> str:
+    with tempfile.NamedTemporaryFile("w+", encoding="utf-8", delete=False, prefix="q.", suffix=".txt") as tf:
+        path = Path(tf.name)
+        tf.write(initial)
+        tf.flush()
+
+    try:
+        cmd = _editor_cmd() + [str(path)]
+        proc = subprocess.run(cmd)
+        if proc.returncode != 0:
+            raise RuntimeError(f"editor exited with status {proc.returncode}: {' '.join(cmd)}")
+        return path.read_text(encoding="utf-8")
+    finally:
+        try:
+            path.unlink()
+        except OSError:
+            pass
+
+
+def _split_topic_and_body(text: str) -> tuple[str, str]:
+    if "\n" in text:
+        first, rest = text.split("\n", 1)
+    else:
+        first, rest = text, ""
+    topic = first.strip()
+    if not topic:
+        raise ValueError("topic is empty")
+    return topic, rest
+
+
+def _read_stdin_text() -> str:
+    # Do not implicitly add trailing newline; preserve what we read.
+    return sys.stdin.read()
+
+
+def cmd_put(args: argparse.Namespace, store: QueueStore) -> int:
+    if args.topic:
+        topic = args.topic.strip()
+        if not topic:
+            raise ValueError("topic is empty")
+        body = _edit_text("")
+    else:
+        text = _edit_text("")
+        topic, body = _split_topic_and_body(text)
+
+    uid = store.append(topic, body)
+    sys.stdout.write(uid + "\n")
+    return 0
+
+
+def cmd_readto(args: argparse.Namespace, store: QueueStore) -> int:
+    text = _read_stdin_text()
+    if args.topic:
+        topic = args.topic.strip()
+        if not topic:
+            raise ValueError("topic is empty")
+        body = text
+    else:
+        topic, body = _split_topic_and_body(text)
+
+    uid = store.append(topic, body)
+    sys.stdout.write(uid + "\n")
+    return 0
+
+
+def cmd_get(args: argparse.Namespace, store: QueueStore) -> int:
+    topic = args.topic.strip()
+    if not topic:
+        raise ValueError("topic is empty")
+    sleep_s = args.poll
+
+    while True:
+        msg = store.pop_first(topic)
+        if msg is not None:
+            sys.stdout.write(str(msg.get("content", "")))
+            sys.stdout.flush()
+            return 0
+
+        if not args.block:
+            return 1
+
+        time.sleep(sleep_s)
+
+
+def cmd_peek(args: argparse.Namespace, store: QueueStore) -> int:
+    topic = args.topic.strip()
+    if not topic:
+        raise ValueError("topic is empty")
+    if args.uuid:
+        msg = store.get_by_uuid(topic, args.uuid)
+    else:
+        msg = store.peek_first(topic)
+
+    if msg is None:
+        return 1
+
+    sys.stdout.write(str(msg.get("content", "")))
+    sys.stdout.flush()
+    return 0
+
+
+def cmd_list(args: argparse.Namespace, store: QueueStore) -> int:
+    topic = args.topic.strip()
+    if not topic:
+        raise ValueError("topic is empty")
+    msgs = store.list_messages(topic)
+    for m in msgs:
+        uid = str(m.get("uuid", ""))
+        if args.quiet:
+            sys.stdout.write(uid + "\n")
+        else:
+            summary = _summarise(str(m.get("content", "")))
+            sys.stdout.write(f"{uid} {summary}\n")
+    return 0
+
+
+def cmd_del(args: argparse.Namespace, store: QueueStore) -> int:
+    topic = args.topic.strip()
+    if not topic:
+        raise ValueError("topic is empty")
+    ok = store.delete_by_uuid(topic, args.uuid)
+    return 0 if ok else 1
+
+
+def cmd_replace(args: argparse.Namespace, store: QueueStore) -> int:
+    topic = args.topic.strip()
+    if not topic:
+        raise ValueError("topic is empty")
+    body = _read_stdin_text()
+    ok = store.replace_by_uuid(topic, args.uuid, body)
+    return 0 if ok else 1
+
+
+def cmd_edit(args: argparse.Namespace, store: QueueStore) -> int:
+    topic = args.topic.strip()
+    if not topic:
+        raise ValueError("topic is empty")
+    # Load current content (shared lock) then edit without holding any lock.
+    msg = store.get_by_uuid(topic, args.uuid)
+    if msg is None:
+        return 1
+    original = str(msg.get("content", ""))
+
+    edited = _edit_text(original)
+
+    ok = store.replace_by_uuid(topic, args.uuid, edited)
+    return 0 if ok else 1
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(
+        prog="q",
+        description="Topic-based queues (file-backed, flock-locked).",
+    )
+    p.add_argument("--dir", dest="base_dir", default=None, help="Storage directory (overrides Q_DIR and XDG_STATE_HOME).")
+    p.add_argument("--version", action="version", version=f"%(prog)s {_VERSION}")
+
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    sp = sub.add_parser("put", help="Open $EDITOR, enqueue message. If topic omitted, first line is topic.")
+    sp.add_argument("topic", nargs="?", help="Topic name (optional).")
+    sp.set_defaults(func=cmd_put)
+
+    sp = sub.add_parser("readto", help="Read stdin, enqueue message. If topic omitted, first line is topic.")
+    sp.add_argument("topic", nargs="?", help="Topic name (optional).")
+    sp.set_defaults(func=cmd_readto)
+
+    sp = sub.add_parser("get", help="Dequeue first message to stdout.")
+    sp.add_argument("topic", help="Topic name.")
+    sp.add_argument("--block", action="store_true", help="Block (poll) until a message exists.")
+    sp.add_argument("--poll", type=float, default=0.2, help="Polling interval in seconds when --block is used (default: 0.2).")
+    sp.set_defaults(func=cmd_get)
+
+    sp = sub.add_parser("peek", help="Print message without removing it.")
+    sp.add_argument("topic", help="Topic name.")
+    sp.add_argument("uuid", nargs="?", help="Message UUID (optional; defaults to first message).")
+    sp.set_defaults(func=cmd_peek)
+
+    sp = sub.add_parser("list", help="List messages with UUID and a summary.")
+    sp.add_argument("topic", help="Topic name.")
+    sp.add_argument("-q", "--quiet", action="store_true", help="Only print UUIDs (no summaries).")
+    sp.set_defaults(func=cmd_list)
+
+    sp = sub.add_parser("del", help="Delete message by UUID.")
+    sp.add_argument("topic", help="Topic name.")
+    sp.add_argument("uuid", help="Message UUID.")
+    sp.set_defaults(func=cmd_del)
+
+    sp = sub.add_parser("edit", help="Open message in $EDITOR, then replace it.")
+    sp.add_argument("topic", help="Topic name.")
+    sp.add_argument("uuid", help="Message UUID.")
+    sp.set_defaults(func=cmd_edit)
+
+    sp = sub.add_parser("replace", help="Replace message content from stdin.")
+    sp.add_argument("topic", help="Topic name.")
+    sp.add_argument("uuid", help="Message UUID.")
+    sp.set_defaults(func=cmd_replace)
+
+    return p
+
+
+def main(argv: list[str] | None = None) -> int:
+    argv = sys.argv[1:] if argv is None else argv
+    parser = _build_parser()
+    args = parser.parse_args(argv)
+
+    base_dir = Path(args.base_dir).expanduser() if args.base_dir else _default_base_dir()
+    store = QueueStore(base_dir=base_dir)
+
+    try:
+        return int(args.func(args, store))
+    except ValueError as e:
+        sys.stderr.write(f"q: {e}\n")
+        return 2
+    except RuntimeError as e:
+        sys.stderr.write(f"q: {e}\n")
+        return 3
+    except KeyboardInterrupt:
+        return 130
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+

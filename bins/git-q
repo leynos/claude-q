@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat >&2 <<'EOF'
+Usage:
+  git q put        # opens $EDITOR, enqueues into topic derived from repo+branch
+  git q readto     # reads stdin, enqueues into the same topic
+  git q get        # dequeue (non-blocking)
+  git q get --block
+EOF
+  exit 2
+}
+
+cmd="${1:-}"; shift || true
+[[ -n "$cmd" ]] || usage
+
+# Compute topic
+remote="$(git remote 2>/dev/null | head -n 1 || true)"
+branch="$(git branch --show-current 2>/dev/null || true)"
+
+topic=""
+if [[ -n "$remote" && -n "$branch" ]]; then
+  topic="${remote}:${branch}"
+elif [[ -n "$remote" ]]; then
+  topic="$remote"
+elif [[ -n "$branch" ]]; then
+  topic="$branch"
+else
+  echo "git q: couldn't determine remote or branch (not a repo? detached? no remotes?)" >&2
+  exit 1
+fi
+
+exec q "$cmd" "$topic" "$@"
