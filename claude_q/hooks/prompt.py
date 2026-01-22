@@ -79,10 +79,12 @@ def main() -> int:  # noqa: C901, PLR0911
 
     # Verify it's the exact token, not "=qputty" or similar
     prefix_len = len(PREFIX)
-    if (
-        len(stripped) > prefix_len
-        and stripped[prefix_len] not in {" ", "\t", "\r", "\n"}
-    ):
+    if len(stripped) > prefix_len and stripped[prefix_len] not in {
+        " ",
+        "\t",
+        "\r",
+        "\n",
+    }:
         return 0  # Not exact match - allow normally
 
     # Determine blocking mode (default to JSON for nicer UX)
