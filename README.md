@@ -349,9 +349,9 @@ claude_q/
     └── uninstall.py     # Hook uninstaller
 ```
 
-## License
+## Licence
 
-MIT License - see LICENSE file for details.
+ISC Licence - see [LICENSE](LICENSE) file for details.
 
 ## Contributing
 
