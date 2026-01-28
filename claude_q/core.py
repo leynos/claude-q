@@ -144,6 +144,7 @@ class QueueStore:
                     fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
 
     # TODO(leynos): https://github.com/leynos/claude-q/issues/123
+    # TODO(leynos): https://github.com/leynos/claude-q/issues/123
     def _load_messages_unlocked(  # noqa: C901
         self, topic: str
     ) -> list[dict[str, typ.Any]]:
@@ -188,6 +189,7 @@ class QueueStore:
                 "(messages not a list)"
             )
             # TODO(leynos): https://github.com/leynos/claude-q/issues/123
+            # RuntimeError preferred for file corruption over TypeError.
             raise RuntimeError(msg)  # noqa: TRY004
         # Validate minimally.
         out: list[dict[str, typ.Any]] = []

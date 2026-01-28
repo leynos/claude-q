@@ -137,8 +137,7 @@ def install(  # noqa: C901, PLR0911
     try:
         with settings_file.open(encoding="utf-8") as f:
             settings = loads(f.read())
-    # TODO(leynos): https://github.com/leynos/claude-q/issues/123
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # TODO(leynos): https://github.com/leynos/claude-q/issues/123
         sys.stderr.write(f"Error parsing settings.json: {e}\n")
         return 1
 
@@ -170,8 +169,7 @@ def install(  # noqa: C901, PLR0911
     try:
         with settings_file.open("w", encoding="utf-8") as f:
             f.write(dumps(settings))
-    # TODO(leynos): https://github.com/leynos/claude-q/issues/123
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # TODO(leynos): https://github.com/leynos/claude-q/issues/123
         sys.stderr.write(f"Error writing settings.json: {e}\n")
         return 1
 
@@ -192,8 +190,7 @@ def main() -> int:
     try:
         result = app()
         return result if isinstance(result, int) else 0
-    # TODO(leynos): https://github.com/leynos/claude-q/issues/123
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # TODO(leynos): https://github.com/leynos/claude-q/issues/123
         sys.stderr.write(f"Error: {e}\n")
         return 1
     except KeyboardInterrupt:

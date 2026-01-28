@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-# TODO(leynos): https://github.com/leynos/claude-q/issues/123
-from pathlib import Path  # noqa: TC003
+from pathlib import (
+    Path,  # noqa: TC003  # TODO(leynos): https://github.com/leynos/claude-q/issues/123
+)
 
 import pytest
 

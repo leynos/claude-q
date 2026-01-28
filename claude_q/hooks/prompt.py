@@ -42,8 +42,7 @@ def main() -> int:
     # Parse hook payload
     try:
         payload = json.load(sys.stdin)
-    # TODO(leynos): https://github.com/leynos/claude-q/issues/123
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # TODO(leynos): https://github.com/leynos/claude-q/issues/123
         return 0  # Allow prompt on parse error
 
     prompt = str(payload.get("prompt") or "")
@@ -71,8 +70,7 @@ def main() -> int:
     store = QueueStore(default_base_dir())
     try:
         store.append(topic, body)
-    # TODO(leynos): https://github.com/leynos/claude-q/issues/123
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # TODO(leynos): https://github.com/leynos/claude-q/issues/123
         return block_with_message(
             f"qput: failed to enqueue to '{topic}': {e}",
             use_exit2=use_exit2,

@@ -26,8 +26,7 @@ def main() -> int:
     """Run the stop hook to dequeue tasks."""
     try:
         payload: dict[str, typ.Any] = json.load(sys.stdin)
-    # TODO(leynos): https://github.com/leynos/claude-q/issues/123
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # TODO(leynos): https://github.com/leynos/claude-q/issues/123
         payload = {}
 
     # Stop payload *may* include cwd; if not, rely on process cwd.

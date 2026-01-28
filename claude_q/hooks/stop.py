@@ -38,8 +38,7 @@ def main() -> int:
     store = QueueStore(default_base_dir())
     try:
         msg = store.pop_first(topic)
-    # TODO(leynos): https://github.com/leynos/claude-q/issues/123
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # TODO(leynos): https://github.com/leynos/claude-q/issues/123
         # Any error (corrupt queue, etc.) - allow stop
         return 0
 

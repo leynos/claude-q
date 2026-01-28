@@ -350,7 +350,7 @@ claude_q/
 
 ## Licence
 
-ISC Licence - see [LICENSE](LICENSE) file for details.
+ISC Licence - see [LICENCE](LICENSE) file for details.
 
 ## Contributing
 

@@ -20,8 +20,7 @@ def get_first_remote() -> str:
     try:
         result = git["remote"]()
         remotes = [line.strip() for line in result.splitlines() if line.strip()]
-    # TODO(leynos): https://github.com/leynos/claude-q/issues/123
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # TODO(leynos): https://github.com/leynos/claude-q/issues/123
         return ""
     return remotes[0] if remotes else ""
 
@@ -36,8 +35,7 @@ def get_current_branch() -> str:
     """
     try:
         branch = git["branch", "--show-current"]().strip()
-    # TODO(leynos): https://github.com/leynos/claude-q/issues/123
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # TODO(leynos): https://github.com/leynos/claude-q/issues/123
         return ""
 
     # "HEAD" or empty means detached HEAD
@@ -55,8 +53,7 @@ def is_in_git_worktree() -> bool:
     """
     try:
         result = git["rev-parse", "--is-inside-work-tree"]().strip()
-    # TODO(leynos): https://github.com/leynos/claude-q/issues/123
-    except Exception:  # noqa: BLE001
+    except Exception:  # noqa: BLE001  # TODO(leynos): https://github.com/leynos/claude-q/issues/123
         return False
     return result == "true"
 
