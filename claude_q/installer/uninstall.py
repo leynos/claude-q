@@ -1,19 +1,21 @@
 """Uninstall claude-q hooks from Claude Code settings.
 
-Uses json5kit for lossless roundtrip of settings.json, preserving comments and
-formatting while removing hook entries.
+Uses json5kit to parse JSON5 settings and writes normalized output while
+removing hook entries.
 """
 
 from __future__ import annotations
 
 import datetime as dt
 import sys
+
+# TODO(leynos): https://github.com/leynos/claude-q/issues/123
 from pathlib import Path  # noqa: TC003
 
 import cyclopts
-import json5kit
 
 from claude_q.installer.install import find_settings_file
+from claude_q.installer.json5_helpers import dumps, loads
 
 app = cyclopts.App(
     name="q-uninstall-hooks",
@@ -22,7 +24,8 @@ app = cyclopts.App(
 
 
 @app.default
-def uninstall(  # noqa: C901, PLR0911
+# TODO(leynos): https://github.com/leynos/claude-q/issues/123
+def uninstall(  # noqa: C901, PLR0911, PLR0912
     *,
     settings_path: Path | None = None,
     dry_run: bool = False,
@@ -48,22 +51,10 @@ def uninstall(  # noqa: C901, PLR0911
 
     sys.stdout.write(f"Found settings: {settings_file}\n")
 
-    if dry_run:
-        sys.stdout.write("\n[DRY RUN] Would remove hooks:\n")
-        sys.stdout.write("  - stop\n")
-        sys.stdout.write("  - userPromptSubmit\n")
-        return 0
-
-    # Create timestamped backup
-    timestamp = dt.datetime.now(tz=dt.UTC).strftime("%Y%m%d_%H%M%S")
-    backup_path = settings_file.with_suffix(f".backup.{timestamp}.json")
-    backup_path.write_text(settings_file.read_text(encoding="utf-8"), encoding="utf-8")
-    sys.stdout.write(f"Created backup: {backup_path}\n")
-
-    # Parse with json5kit for lossless roundtrip
     try:
         with settings_file.open(encoding="utf-8") as f:
-            settings = json5kit.loads(f.read())  # type: ignore[attr-defined]
+            settings = loads(f.read())
+    # TODO(leynos): https://github.com/leynos/claude-q/issues/123
     except Exception as e:  # noqa: BLE001
         sys.stderr.write(f"Error parsing settings.json: {e}\n")
         return 1
@@ -77,9 +68,29 @@ def uninstall(  # noqa: C901, PLR0911
     has_stop = "stop" in hooks
     has_prompt = "userPromptSubmit" in hooks
 
+    if dry_run:
+        if not has_stop and not has_prompt:
+            sys.stdout.write("\nNo claude-q hooks found - nothing to remove.\n")
+            return 0
+        sys.stdout.write("\n[DRY RUN] Would remove hooks:\n")
+        if has_stop:
+            sys.stdout.write("  - stop\n")
+        if has_prompt:
+            sys.stdout.write("  - userPromptSubmit\n")
+        return 0
+
     if not has_stop and not has_prompt:
         sys.stdout.write("\nNo claude-q hooks found - nothing to remove.\n")
         return 0
+
+    # Create timestamped backup
+    timestamp = dt.datetime.now(tz=dt.UTC).strftime("%Y%m%d_%H%M%S")
+    backup_path = settings_file.with_suffix(f".backup.{timestamp}.json")
+    backup_path.write_text(
+        settings_file.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    sys.stdout.write(f"Created backup: {backup_path}\n")
 
     # Remove hooks
     removed = []
@@ -94,10 +105,11 @@ def uninstall(  # noqa: C901, PLR0911
     if not hooks:
         del settings["hooks"]
 
-    # Write back with json5kit (preserves formatting/comments)
+    # Write back with json5kit normalization
     try:
         with settings_file.open("w", encoding="utf-8") as f:
-            f.write(json5kit.dumps(settings))  # type: ignore[attr-defined]
+            f.write(dumps(settings))
+    # TODO(leynos): https://github.com/leynos/claude-q/issues/123
     except Exception as e:  # noqa: BLE001
         sys.stderr.write(f"Error writing settings.json: {e}\n")
         return 1
@@ -119,6 +131,7 @@ def main() -> int:
     try:
         result = app()
         return result if isinstance(result, int) else 0
+    # TODO(leynos): https://github.com/leynos/claude-q/issues/123
     except Exception as e:  # noqa: BLE001
         sys.stderr.write(f"Error: {e}\n")
         return 1

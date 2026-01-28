@@ -15,9 +15,15 @@ EOF
 cmd="${1:-}"; shift || true
 [[ -n "$cmd" ]] || usage
 
-# Compute topic
+# Compute topic (align with claude_q.git_integration).
+if [[ "$(git rev-parse --is-inside-work-tree 2>/dev/null || true)" != "true" ]]; then
+  echo "git q: not in a git worktree (cannot derive topic)" >&2
+  exit 1
+fi
+
 remote="$(git remote 2>/dev/null | head -n 1 || true)"
 branch="$(git branch --show-current 2>/dev/null || true)"
+[[ "$branch" == "HEAD" ]] && branch=""
 
 topic=""
 if [[ -n "$remote" && -n "$branch" ]]; then
@@ -27,7 +33,7 @@ elif [[ -n "$remote" ]]; then
 elif [[ -n "$branch" ]]; then
   topic="$branch"
 else
-  echo "git q: couldn't determine remote or branch (not a repo? detached? no remotes?)" >&2
+  echo "git q: cannot derive topic (no remote and no branch)" >&2
   exit 1
 fi
 

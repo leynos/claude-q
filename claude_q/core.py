@@ -20,13 +20,11 @@ import urllib.parse
 import uuid
 from pathlib import Path
 
-if typ.TYPE_CHECKING:
-    import collections.abc as cabc
-
 _ALLOWED_TOPIC_CHARS = (
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-"
 )
-_MAX_FILENAME_LENGTH = 180  # Keep under filesystem limits, leave room for suffixes
+_MAX_FILENAME_LENGTH = 180
+# Keep under filesystem limits, leave room for suffixes.
 
 
 def _topic_to_filename(topic: str) -> str:
@@ -91,7 +89,10 @@ class QueueStore:
         self.base_dir = base_dir
 
     def ensure_base_dir(self) -> None:
-        """Create base directory if it doesn't exist, with restricted permissions."""
+        """Create base directory if it doesn't exist.
+
+        Uses restricted permissions when possible.
+        """
         self.base_dir.mkdir(parents=True, exist_ok=True)
         # Best-effort permissions tightening; don't explode on weird FS.
         with contextlib.suppress(OSError):
@@ -114,7 +115,7 @@ class QueueStore:
         )
 
     @contextlib.contextmanager
-    def lock_topic(self, topic: str, *, exclusive: bool) -> cabc.Iterator[None]:
+    def lock_topic(self, topic: str, *, exclusive: bool) -> typ.Iterator[None]:
         """Lock a topic via its dedicated lock file.
 
         We lock the lock file (never replaced), so we can safely replace the
@@ -131,7 +132,7 @@ class QueueStore:
         self.ensure_base_dir()
         paths = self.paths_for_topic(topic)
         # 'a+' so it exists; do not truncate.
-        with Path(paths.lock).open("a+", encoding="utf-8") as lf:
+        with paths.lock.open("a+", encoding="utf-8") as lf:
             try:
                 lf.flush()
                 lock_type = fcntl.LOCK_EX if exclusive else fcntl.LOCK_SH
@@ -142,6 +143,7 @@ class QueueStore:
                 with contextlib.suppress(OSError):
                     fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
 
+    # TODO(leynos): https://github.com/leynos/claude-q/issues/123
     def _load_messages_unlocked(  # noqa: C901
         self, topic: str
     ) -> list[dict[str, typ.Any]]:
@@ -185,6 +187,7 @@ class QueueStore:
                 f"corrupt queue file for topic {topic!r}: {paths.data} "
                 "(messages not a list)"
             )
+            # TODO(leynos): https://github.com/leynos/claude-q/issues/123
             raise RuntimeError(msg)  # noqa: TRY004
         # Validate minimally.
         out: list[dict[str, typ.Any]] = []
@@ -210,7 +213,7 @@ class QueueStore:
         """
         paths = self.paths_for_topic(topic)
         self.ensure_base_dir()
-        payload: cabc.MutableMapping[str, typ.Any] = {
+        payload: typ.MutableMapping[str, typ.Any] = {
             "version": 1,
             "topic": topic,
             "messages": messages,
@@ -231,7 +234,7 @@ class QueueStore:
             # Tighten permissions before replace (best-effort).
             with contextlib.suppress(OSError):
                 tmp_path.chmod(0o600)
-            Path(tmp_path).replace(paths.data)
+            tmp_path.replace(paths.data)
         finally:
             # If replace failed, try to clean up.
             try:

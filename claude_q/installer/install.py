@@ -1,18 +1,20 @@
 """Install claude-q hooks into Claude Code settings.
 
-Uses json5kit for lossless roundtrip of settings.json, preserving comments and
-formatting while adding hook entries.
+Uses json5kit to parse JSON5 settings and writes normalized output while
+adding hook entries.
 """
 
 from __future__ import annotations
 
 import datetime as dt
+import os
 import shutil
 import sys
 from pathlib import Path
 
 import cyclopts
-import json5kit
+
+from claude_q.installer.json5_helpers import dumps, loads
 
 app = cyclopts.App(
     name="q-install-hooks",
@@ -40,9 +42,11 @@ def find_settings_file(settings_path: Path | None = None) -> Path:
         return settings_path
 
     # Try XDG_CONFIG_HOME first
-    xdg_config = Path.home()
-    if xdg_env := Path.home().joinpath(".config"):
-        xdg_config = xdg_env
+    xdg_config_env = os.environ.get("XDG_CONFIG_HOME")
+    if xdg_config_env:
+        xdg_config = Path(xdg_config_env).expanduser()
+    else:
+        xdg_config = Path.home() / ".config"
 
     candidates = [
         xdg_config / "claude" / "settings.json",
@@ -75,7 +79,8 @@ def verify_hook_commands() -> list[str]:
 
 
 @app.default
-def install(  # noqa: C901
+# TODO(leynos): https://github.com/leynos/claude-q/issues/123
+def install(  # noqa: C901, PLR0911
     *,
     settings_path: Path | None = None,
     dry_run: bool = False,
@@ -105,6 +110,11 @@ def install(  # noqa: C901
 
     # Check if hook commands are available
     warnings = verify_hook_commands()
+    if warnings and not force:
+        for warning in warnings:
+            sys.stderr.write(f"{warning}\n")
+        sys.stderr.write("Use --force to install hooks anyway.\n")
+        return 1
     for warning in warnings:
         sys.stdout.write(f"{warning}\n")
 
@@ -117,13 +127,17 @@ def install(  # noqa: C901
     # Create timestamped backup
     timestamp = dt.datetime.now(tz=dt.UTC).strftime("%Y%m%d_%H%M%S")
     backup_path = settings_file.with_suffix(f".backup.{timestamp}.json")
-    backup_path.write_text(settings_file.read_text(encoding="utf-8"), encoding="utf-8")
+    backup_path.write_text(
+        settings_file.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
     sys.stdout.write(f"Created backup: {backup_path}\n")
 
-    # Parse with json5kit for lossless roundtrip
+    # Parse with json5kit for JSON5 support
     try:
         with settings_file.open(encoding="utf-8") as f:
-            settings = json5kit.loads(f.read())  # type: ignore[attr-defined]
+            settings = loads(f.read())
+    # TODO(leynos): https://github.com/leynos/claude-q/issues/123
     except Exception as e:  # noqa: BLE001
         sys.stderr.write(f"Error parsing settings.json: {e}\n")
         return 1
@@ -143,7 +157,8 @@ def install(  # noqa: C901
         if has_stop:
             sys.stdout.write(f"  stop: {hooks['stop']}\n")
         if has_prompt:
-            sys.stdout.write(f"  userPromptSubmit: {hooks['userPromptSubmit']}\n")
+            prompt_hook = hooks["userPromptSubmit"]
+            sys.stdout.write(f"  userPromptSubmit: {prompt_hook}\n")
         sys.stdout.write("\nUse --force to overwrite existing hooks.\n")
         return 1
 
@@ -151,10 +166,11 @@ def install(  # noqa: C901
     hooks["stop"] = {"command": "q-stop-hook", "enabled": True}
     hooks["userPromptSubmit"] = {"command": "q-prompt-hook", "enabled": True}
 
-    # Write back with json5kit (preserves formatting/comments)
+    # Write back with json5kit normalization
     try:
         with settings_file.open("w", encoding="utf-8") as f:
-            f.write(json5kit.dumps(settings))  # type: ignore[attr-defined]
+            f.write(dumps(settings))
+    # TODO(leynos): https://github.com/leynos/claude-q/issues/123
     except Exception as e:  # noqa: BLE001
         sys.stderr.write(f"Error writing settings.json: {e}\n")
         return 1
@@ -176,6 +192,7 @@ def main() -> int:
     try:
         result = app()
         return result if isinstance(result, int) else 0
+    # TODO(leynos): https://github.com/leynos/claude-q/issues/123
     except Exception as e:  # noqa: BLE001
         sys.stderr.write(f"Error: {e}\n")
         return 1

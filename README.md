@@ -2,22 +2,22 @@
 
 ## Topic-based FIFO queues for Claude Code session continuity
 
-`claude-q` provides simple, reliable task queuing that integrates
-seamlessly with Claude Code. Queue tasks when you think of them, and
-Claude automatically picks them up when ready—perfect for maintaining
-context across sessions and managing async workflows.
+`claude-q` provides simple, reliable task queuing that integrates seamlessly
+with Claude Code. Queue tasks when you think of them, and Claude automatically
+picks them up when ready—perfect for maintaining context across sessions and
+managing async workflows.
 
 ## Why claude-q?
 
-When working with Claude Code, you often think of tasks while in the
-middle of something else:
+When working with Claude Code, you often think of tasks while in the middle of
+something else:
 
-- "I should refactor that module... but not now"
-- "Need to add tests for this... after the current feature"
+- "I should refactor that module… but not now"
+- "Need to add tests for this… after the current feature"
 - "This would be a good time to update the docs"
 
-Instead of interrupting your flow or forgetting these tasks, queue them
-with `=qput` and let Claude handle them when the time is right.
+Instead of interrupting your flow or forgetting these tasks, queue them with
+`=qput` and let Claude handle them when the time is right.
 
 ## Quick Start
 
@@ -57,8 +57,8 @@ q get origin:main --block
 
 ### 🎯 Topic-Based Organization
 
-Messages are organized by topics (typically `remote:branch`), keeping
-your queues organized and context-aware.
+Messages are organized by topics (typically `remote:branch`), keeping your
+queues organized and context-aware.
 
 ```bash
 # Different projects, different queues
@@ -76,8 +76,8 @@ Multiple processes can read/write without conflicts.
 
 ### 🔄 Claude Code Integration
 
-Claude automatically dequeues tasks when stopping, maintaining seamless
-context across sessions:
+Claude automatically dequeues tasks when stopping, maintaining seamless context
+across sessions:
 
 1. Queue tasks with `=qput` during a session
 2. End the Claude session
@@ -97,8 +97,8 @@ context across sessions:
 
 #### `q put [topic]`
 
-Enqueue a message. Opens `$EDITOR` for content. If topic is omitted,
-first line becomes the topic.
+Enqueue a message. Opens `$EDITOR` for content. If topic is omitted, first line
+becomes the topic.
 
 ```bash
 # Specify topic
@@ -252,8 +252,8 @@ From any Claude Code prompt, start with `=qput` to queue a task:
 =qput Refactor database connection pool
 ```
 
-The message is queued and the prompt is blocked—Claude never sees it.
-Perfect for capturing quick thoughts without context switching.
+The message is queued and the prompt is blocked—Claude never sees it. Perfect
+for capturing quick thoughts without context switching.
 
 Multi-line tasks work too:
 
@@ -267,9 +267,8 @@ Implement rate limiting for API:
 
 ### Automatic Dequeue on Stop
 
-When you end a Claude session, the stop hook automatically dequeues the
-next task and feeds it back as your next prompt. Your workflow continues
-seamlessly.
+When you end a Claude session, the stop hook automatically dequeues the next
+task and feeds it back as your next prompt. Your workflow continues seamlessly.
 
 ### Workflow Example
 
@@ -290,7 +289,7 @@ seamlessly.
 
 ### Storage Location
 
-Queues are stored in `${Q_DIR}` or `${XDG_STATE_HOME}/q/` or `~/.local/state/q/`.
+Queues are stored in `${Q_DIR}`, `${XDG_STATE_HOME}/q/`, or `~/.local/state/q/`.
 
 Override with:
 
@@ -365,8 +364,10 @@ Contributions welcome! Please:
 
 Built with:
 
-- [Cyclopts](https://github.com/BrianPugh/cyclopts) - Modern Python CLI framework
-- [Plumbum](https://github.com/tomerfiliba/plumbum) - Shell combinators for Python
-- [json5kit](https://github.com/dpranke/pyjson5) - Lossless JSON editing
+- [Cyclopts](https://github.com/BrianPugh/cyclopts) - Modern Python CLI
+  framework
+- [Plumbum](https://github.com/tomerfiliba/plumbum) - Shell combinators for
+  Python
+- [json5kit](https://github.com/tusharsadhwani/json5kit) - Lossless JSON editing
 
 Inspired by the need for better task management in Claude Code workflows.

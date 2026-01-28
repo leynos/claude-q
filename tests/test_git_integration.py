@@ -21,7 +21,7 @@ def test_get_first_remote_success(mock_git: mock.MagicMock) -> None:
     mock_git.__getitem__.return_value.return_value = "origin\nupstream\n"
 
     remote = get_first_remote()
-    assert remote == "origin"
+    assert remote == "origin", "should return first remote name"
 
 
 @mock.patch("claude_q.git_integration.git")
@@ -30,7 +30,7 @@ def test_get_first_remote_no_remotes(mock_git: mock.MagicMock) -> None:
     mock_git.__getitem__.return_value.return_value = ""
 
     remote = get_first_remote()
-    assert remote == ""
+    assert remote == "", "should return empty string when no remotes exist"
 
 
 @mock.patch("claude_q.git_integration.git")
@@ -39,7 +39,7 @@ def test_get_first_remote_git_error(mock_git: mock.MagicMock) -> None:
     mock_git.__getitem__.return_value.side_effect = Exception("git error")
 
     remote = get_first_remote()
-    assert remote == ""
+    assert remote == "", "should return empty string on git error"
 
 
 @mock.patch("claude_q.git_integration.git")
@@ -48,7 +48,7 @@ def test_get_current_branch_success(mock_git: mock.MagicMock) -> None:
     mock_git.__getitem__.return_value.return_value = "main\n"
 
     branch = get_current_branch()
-    assert branch == "main"
+    assert branch == "main", "should return branch name"
 
 
 @mock.patch("claude_q.git_integration.git")
@@ -57,7 +57,7 @@ def test_get_current_branch_detached_head(mock_git: mock.MagicMock) -> None:
     mock_git.__getitem__.return_value.return_value = "HEAD\n"
 
     branch = get_current_branch()
-    assert branch == ""
+    assert branch == "", "detached HEAD should return empty string"
 
 
 @mock.patch("claude_q.git_integration.git")
@@ -66,7 +66,7 @@ def test_get_current_branch_empty(mock_git: mock.MagicMock) -> None:
     mock_git.__getitem__.return_value.return_value = ""
 
     branch = get_current_branch()
-    assert branch == ""
+    assert branch == "", "empty output should return empty string"
 
 
 @mock.patch("claude_q.git_integration.git")
@@ -75,7 +75,7 @@ def test_get_current_branch_git_error(mock_git: mock.MagicMock) -> None:
     mock_git.__getitem__.return_value.side_effect = Exception("git error")
 
     branch = get_current_branch()
-    assert branch == ""
+    assert branch == "", "should return empty string on git error"
 
 
 @mock.patch("claude_q.git_integration.git")
@@ -83,7 +83,7 @@ def test_is_in_git_worktree_true(mock_git: mock.MagicMock) -> None:
     """Test detecting when inside a git worktree."""
     mock_git.__getitem__.return_value.return_value = "true\n"
 
-    assert is_in_git_worktree() is True
+    assert is_in_git_worktree() is True, "should return True when inside worktree"
 
 
 @mock.patch("claude_q.git_integration.git")
@@ -91,7 +91,7 @@ def test_is_in_git_worktree_false(mock_git: mock.MagicMock) -> None:
     """Test detecting when not inside a git worktree."""
     mock_git.__getitem__.return_value.return_value = "false\n"
 
-    assert is_in_git_worktree() is False
+    assert is_in_git_worktree() is False, "should return False when outside worktree"
 
 
 @mock.patch("claude_q.git_integration.git")
@@ -99,58 +99,58 @@ def test_is_in_git_worktree_git_error(mock_git: mock.MagicMock) -> None:
     """Test detecting worktree when git command fails."""
     mock_git.__getitem__.return_value.side_effect = Exception("git error")
 
-    assert is_in_git_worktree() is False
+    assert is_in_git_worktree() is False, "should return False on git error"
 
 
 @mock.patch("claude_q.git_integration.is_in_git_worktree")
 @mock.patch("claude_q.git_integration.get_current_branch")
 @mock.patch("claude_q.git_integration.get_first_remote")
 def test_derive_topic_remote_and_branch(
-    mock_remote: mock.MagicMock,
-    mock_branch: mock.MagicMock,
-    mock_worktree: mock.MagicMock,
+    mock_get_first_remote: mock.MagicMock,
+    mock_get_current_branch: mock.MagicMock,
+    mock_is_in_git_worktree: mock.MagicMock,
 ) -> None:
     """Test deriving topic when both remote and branch exist."""
-    mock_worktree.return_value = True
-    mock_remote.return_value = "origin"
-    mock_branch.return_value = "feature"
+    mock_is_in_git_worktree.return_value = True
+    mock_get_first_remote.return_value = "origin"
+    mock_get_current_branch.return_value = "feature"
 
     topic = derive_topic()
-    assert topic == "origin:feature"
+    assert topic == "origin:feature", "should combine remote and branch"
 
 
 @mock.patch("claude_q.git_integration.is_in_git_worktree")
 @mock.patch("claude_q.git_integration.get_current_branch")
 @mock.patch("claude_q.git_integration.get_first_remote")
 def test_derive_topic_remote_only(
-    mock_remote: mock.MagicMock,
-    mock_branch: mock.MagicMock,
-    mock_worktree: mock.MagicMock,
+    mock_get_first_remote: mock.MagicMock,
+    mock_get_current_branch: mock.MagicMock,
+    mock_is_in_git_worktree: mock.MagicMock,
 ) -> None:
     """Test deriving topic when only remote exists."""
-    mock_worktree.return_value = True
-    mock_remote.return_value = "origin"
-    mock_branch.return_value = ""
+    mock_is_in_git_worktree.return_value = True
+    mock_get_first_remote.return_value = "origin"
+    mock_get_current_branch.return_value = ""
 
     topic = derive_topic()
-    assert topic == "origin"
+    assert topic == "origin", "should return remote when branch missing"
 
 
 @mock.patch("claude_q.git_integration.is_in_git_worktree")
 @mock.patch("claude_q.git_integration.get_current_branch")
 @mock.patch("claude_q.git_integration.get_first_remote")
 def test_derive_topic_branch_only(
-    mock_remote: mock.MagicMock,
-    mock_branch: mock.MagicMock,
-    mock_worktree: mock.MagicMock,
+    mock_get_first_remote: mock.MagicMock,
+    mock_get_current_branch: mock.MagicMock,
+    mock_is_in_git_worktree: mock.MagicMock,
 ) -> None:
     """Test deriving topic when only branch exists."""
-    mock_worktree.return_value = True
-    mock_remote.return_value = ""
-    mock_branch.return_value = "feature"
+    mock_is_in_git_worktree.return_value = True
+    mock_get_first_remote.return_value = ""
+    mock_get_current_branch.return_value = "feature"
 
     topic = derive_topic()
-    assert topic == "feature"
+    assert topic == "feature", "should return branch when remote missing"
 
 
 @mock.patch("claude_q.git_integration.is_in_git_worktree")

@@ -13,30 +13,37 @@ def get_first_remote() -> str:
     """Get the name of the first configured git remote.
 
     Returns:
-        The first remote name, or empty string if no remotes exist or not in a git repo.
+        The first remote name, or empty string if no remotes exist or not in a
+        git repo.
 
     """
     try:
         result = git["remote"]()
         remotes = [line.strip() for line in result.splitlines() if line.strip()]
-        return remotes[0] if remotes else ""
+    # TODO(leynos): https://github.com/leynos/claude-q/issues/123
     except Exception:  # noqa: BLE001
         return ""
+    return remotes[0] if remotes else ""
 
 
 def get_current_branch() -> str:
     """Get the name of the current git branch.
 
     Returns:
-        The current branch name, or empty string if detached HEAD or not in a git repo.
+        The current branch name, or empty string if detached HEAD or not in a
+        git repo.
 
     """
     try:
         branch = git["branch", "--show-current"]().strip()
-        # "HEAD" or empty means detached HEAD
-        return "" if branch in {"", "HEAD"} else branch  # noqa: TRY300
+    # TODO(leynos): https://github.com/leynos/claude-q/issues/123
     except Exception:  # noqa: BLE001
         return ""
+
+    # "HEAD" or empty means detached HEAD
+    if branch in {"", "HEAD"}:
+        return ""
+    return branch
 
 
 def is_in_git_worktree() -> bool:
@@ -48,22 +55,28 @@ def is_in_git_worktree() -> bool:
     """
     try:
         result = git["rev-parse", "--is-inside-work-tree"]().strip()
-        return result == "true"  # noqa: TRY300
+    # TODO(leynos): https://github.com/leynos/claude-q/issues/123
     except Exception:  # noqa: BLE001
         return False
+    return result == "true"
+
+
+def combine_topic(remote: str, branch: str) -> str:
+    """Combine remote and branch into a topic string."""
+    if remote and branch:
+        return f"{remote}:{branch}"
+    if remote:
+        return remote
+    if branch:
+        return branch
+    return ""
 
 
 def derive_topic() -> str:
     """Derive a queue topic from the current git context.
 
-    The topic is derived as follows:
-    - If both remote and branch exist: "remote:branch"
-    - If only remote exists: "remote"
-    - If only branch exists: "branch"
-    - Otherwise: empty string
-
     Returns:
-        The derived topic, or empty string if no valid git context.
+        The derived topic string.
 
     Raises:
         GitError: If not in a git worktree or cannot derive a topic.
@@ -76,12 +89,9 @@ def derive_topic() -> str:
     remote = get_first_remote()
     branch = get_current_branch()
 
-    if remote and branch:
-        return f"{remote}:{branch}"
-    if remote:
-        return remote
-    if branch:
-        return branch
+    topic = combine_topic(remote, branch)
+    if topic:
+        return topic
 
     msg = "cannot derive topic (no remote and no branch)"
     raise GitError(msg)

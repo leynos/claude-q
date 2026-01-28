@@ -21,7 +21,7 @@ from claude_q.git_integration import GitError, derive_topic
 def main() -> int:
     """Run the stop hook.
 
-    Reads JSON payload from stdin, derives topic, attempts dequeue.
+    Derives topic from git context and attempts to dequeue a message.
 
     Returns:
         Always 0 (hooks must not block on error).
@@ -38,6 +38,7 @@ def main() -> int:
     store = QueueStore(default_base_dir())
     try:
         msg = store.pop_first(topic)
+    # TODO(leynos): https://github.com/leynos/claude-q/issues/123
     except Exception:  # noqa: BLE001
         # Any error (corrupt queue, etc.) - allow stop
         return 0
@@ -48,13 +49,17 @@ def main() -> int:
 
     # Message found - block stop and feed it back to Claude
     content = str(msg.get("content", ""))
+    reason = (
+        f"Dequeued a queued task from topic '{topic}'. "
+        "Treat the following as the user's next prompt and "
+        "complete it.\n\n"
+        "--- BEGIN QUEUED MESSAGE ---\n"
+        f"{content}\n"
+        "--- END QUEUED MESSAGE ---\n"
+    )
     output = {
         "decision": "block",
-        "reason": (
-            f"Dequeued a queued task from topic '{topic}'. "
-            f"Treat the following as the user's next prompt and complete it.\n\n"
-            f"--- BEGIN QUEUED MESSAGE ---\n{content}\n--- END QUEUED MESSAGE ---\n"
-        ),
+        "reason": reason,
     }
     sys.stdout.write(json.dumps(output))
     sys.stdout.flush()
