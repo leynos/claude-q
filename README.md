@@ -4,20 +4,20 @@
 
 `claude-q` provides simple, reliable task queuing that integrates seamlessly
 with Claude Code. Tasks can be queued as they arise, and Claude automatically
-picks them up when ready—ideal for maintaining context across sessions and
-managing async workflows.
+picks them up when ready to maintain context across sessions and manage async
+workflows.
 
 ## Why claude-q?
 
 When working with Claude Code, tasks often arise while another activity is
 already in progress:
 
-- "Refactor that module later"
+- "Refactor the module later"
 - "Add tests after the current feature"
 - "Update the docs"
 
-Instead of interrupting ongoing work or forgetting tasks, queue them with
-`=qput` and let Claude handle them when the time is right.
+Instead of interrupting ongoing work or forgetting tasks, tasks can be queued
+with `=qput` and handled by Claude when the time is right.
 
 ## Quick Start
 
@@ -246,7 +246,7 @@ q-uninstall-hooks
 
 ### The `=qput` Prefix
 
-From any Claude Code prompt, start with `=qput` to queue a task:
+From a Claude Code prompt, start with `=qput` to queue a task:
 
 ```text
 =qput Refactor database connection pool
@@ -322,7 +322,7 @@ q put mytopic  # Opens in VS Code
 
 ```bash
 # Clone and install in development mode
-git clone https://github.com/yourusername/claude-q
+git clone https://github.com/<username>/claude-q
 cd claude-q
 uv sync --group dev
 

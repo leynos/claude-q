@@ -22,8 +22,6 @@ from claude_q.hooks._common import format_dequeue_reason
 def main() -> int:
     """Run the stop hook.
 
-    Derives topic from git context and attempts to dequeue a message.
-
     Parameters
     ----------
     None
@@ -32,6 +30,10 @@ def main() -> int:
     -------
     int
         Always 0 (hooks must not block on error).
+
+    Notes
+    -----
+    Derives the topic from git context and attempts to dequeue a message.
 
     """
     # Try to derive git topic from current directory

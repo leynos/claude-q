@@ -165,13 +165,16 @@ def install(  # noqa: C901, PLR0911, PLR0912, PLR0915
     # Ensure hooks object exists
     match settings.get("hooks"):
         case None:
-            settings["hooks"] = {}
-            hooks = settings["hooks"]
+            hooks = {}
+            settings["hooks"] = hooks
         case dict() as hooks:
             pass
         case _:
-            sys.stderr.write("Error: settings.json hooks must be an object.\n")
-            return 1
+            sys.stderr.write(
+                "Warning: settings.json hooks must be an object; resetting.\n"
+            )
+            hooks = {}
+            settings["hooks"] = hooks
 
     # Check for existing hooks
     has_stop = "stop" in hooks

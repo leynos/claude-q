@@ -44,7 +44,7 @@ _MAX_FILENAME_LENGTH = 180
 
 
 def _topic_to_filename(topic: str) -> str:
-    """Return a safe filename component for a topic."""
+    """Convert a topic string into a safe filename component."""
     t = topic.strip()
     if not t:
         msg = "topic is empty"
@@ -102,11 +102,20 @@ class QueueStore:
         self.base_dir = base_dir
 
     def ensure_base_dir(self) -> None:
-        """Create base directory if it does not exist.
+        """Create the base directory if it does not exist.
+
+        Parameters
+        ----------
+        None
 
         Notes
         -----
         Uses restricted permissions when possible.
+
+        Returns
+        -------
+        None
+            None.
 
         """
         self.base_dir.mkdir(parents=True, exist_ok=True)
