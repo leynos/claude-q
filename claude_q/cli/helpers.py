@@ -1,4 +1,12 @@
-"""Helper utilities for the claude-q CLI commands."""
+r"""Helper utilities for the claude-q CLI commands.
+
+Examples
+--------
+Split editor text into topic and body::
+
+    topic, body = split_topic_and_body("topic\\nbody")
+
+"""
 
 from __future__ import annotations
 
@@ -18,28 +26,37 @@ def editor_cmd() -> list[str]:
     Checks VISUAL first, then EDITOR, defaults to vi.
     Supports editors with arguments like "code --wait".
 
-    Returns:
-        List of command parts [executable, *args].
+    Returns
+    -------
+    list[str]
+        Command parts in ``[executable, *args]`` form.
 
     """
     editor = os.environ.get("VISUAL") or os.environ.get("EDITOR") or "vi"
     try:
-        return shlex.split(editor)
+        tokens = shlex.split(editor)
     except ValueError:
-        return [editor]
+        return ["vi"]
+    return tokens or ["vi"]
 
 
 def edit_text(initial: str = "") -> str:
     """Open text in editor, return edited content.
 
-    Args:
-        initial: Initial text to populate editor with.
+    Parameters
+    ----------
+    initial : str, optional
+        Initial text to populate the editor with.
 
-    Returns:
+    Returns
+    -------
+    str
         Edited text content.
 
-    Raises:
-        RuntimeError: If editor exits with non-zero status.
+    Raises
+    ------
+    RuntimeError
+        If the editor exits with a non-zero status.
 
     """
     with tempfile.NamedTemporaryFile(
@@ -64,14 +81,20 @@ def edit_text(initial: str = "") -> str:
 def split_topic_and_body(text: str) -> tuple[str, str]:
     """Split text into topic (first line) and body (rest).
 
-    Args:
-        text: Input text with topic on first line.
+    Parameters
+    ----------
+    text : str
+        Input text with the topic on the first line.
 
-    Returns:
-        Tuple of (topic, body).
+    Returns
+    -------
+    tuple[str, str]
+        Tuple of ``(topic, body)``.
 
-    Raises:
-        ValueError: If topic is empty.
+    Raises
+    ------
+    ValueError
+        If the topic is empty.
 
     """
     if "\n" in text:
@@ -88,8 +111,10 @@ def split_topic_and_body(text: str) -> tuple[str, str]:
 def read_stdin_text() -> str:
     """Read all text from stdin without modification.
 
-    Returns:
-        stdin content as string.
+    Returns
+    -------
+    str
+        Stdin content.
 
     """
     return sys.stdin.read()
@@ -98,12 +123,17 @@ def read_stdin_text() -> str:
 def summarize(content: str, width: int = 80) -> str:
     """Create a one-line summary of message content.
 
-    Args:
-        content: Message content to summarize.
-        width: Maximum width of summary.
+    Parameters
+    ----------
+    content : str
+        Message content to summarise.
+    width : int, optional
+        Maximum width of summary.
 
-    Returns:
-        Summarized content, possibly truncated with ellipsis.
+    Returns
+    -------
+    str
+        Summarised content, possibly truncated with ellipsis.
 
     """
     lines = content.splitlines()
@@ -113,11 +143,15 @@ def summarize(content: str, width: int = 80) -> str:
         first = "(empty)"
 
     more = len(lines) > 1
-    # Reserve 1 char for ellipsis if needed.
+    return _format_summary_line(first, more=more, width=width)
+
+
+def _format_summary_line(first: str, *, more: bool, width: int) -> str:
+    """Return a width-limited summary line."""
     if len(first) > width:
         return first[: max(0, width - 1)] + "…"
-    if more and len(first) <= width - 2:
-        return first + " …"
     if more:
+        if len(first) <= width - 2:
+            return first + " …"
         return first[: max(0, width - 1)] + "…"
     return first

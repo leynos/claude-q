@@ -3,6 +3,15 @@
 Provides file-based FIFO queue storage with fcntl locking for safe concurrent
 access. Each topic is stored as a separate JSON file with an associated lock
 file for coordination.
+
+Examples
+--------
+Append and pop messages from a queue::
+
+    store = QueueStore(default_base_dir())
+    store.append("origin/main", "Follow up on tests")
+    next_msg = store.pop_first("origin/main")
+
 """
 
 from __future__ import annotations
@@ -20,6 +29,9 @@ import urllib.parse
 import uuid
 from pathlib import Path
 
+if typ.TYPE_CHECKING:
+    import collections.abc as cabc
+
 _ALLOWED_TOPIC_CHARS = (
     "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-"
 )
@@ -28,21 +40,7 @@ _MAX_FILENAME_LENGTH = 180
 
 
 def _topic_to_filename(topic: str) -> str:
-    """Convert an arbitrary topic string into a safe filename component.
-
-    We percent-encode everything except a conservative safe set.
-    For very long topics we append a hash to keep filenames manageable.
-
-    Args:
-        topic: The topic string to encode.
-
-    Returns:
-        A safe filename component.
-
-    Raises:
-        ValueError: If the topic is empty after stripping.
-
-    """
+    """Return a safe filename component for a topic."""
     t = topic.strip()
     if not t:
         msg = "topic is empty"
@@ -61,7 +59,7 @@ def _topic_to_filename(topic: str) -> str:
 
 
 def _utc_now_iso() -> str:
-    """Return current UTC time as ISO 8601 string."""
+    """Return current UTC time as an ISO 8601 string."""
     return dt.datetime.now(tz=dt.UTC).isoformat(timespec="seconds")
 
 
@@ -76,22 +74,36 @@ class TopicPaths:
 class QueueStore:
     """File-based FIFO queue storage with fcntl locking.
 
+    Notes
+    -----
     Each topic is stored as a separate JSON file with messages in FIFO order.
     A dedicated lock file provides coordination for safe concurrent access.
 
-    Args:
-        base_dir: Directory where queue files are stored.
+    Parameters
+    ----------
+    base_dir : Path
+        Directory where queue files are stored.
 
     """
 
     def __init__(self, base_dir: Path) -> None:
-        """Initialize queue store with base directory."""
+        """Initialise a queue store with a base directory.
+
+        Parameters
+        ----------
+        base_dir : Path
+            Directory where queue files are stored.
+
+        """
         self.base_dir = base_dir
 
     def ensure_base_dir(self) -> None:
-        """Create base directory if it doesn't exist.
+        """Create base directory if it does not exist.
 
+        Notes
+        -----
         Uses restricted permissions when possible.
+
         """
         self.base_dir.mkdir(parents=True, exist_ok=True)
         # Best-effort permissions tightening; don't explode on weird FS.
@@ -101,11 +113,15 @@ class QueueStore:
     def paths_for_topic(self, topic: str) -> TopicPaths:
         """Get file paths for a topic's data and lock files.
 
-        Args:
-            topic: The topic name.
+        Parameters
+        ----------
+        topic : str
+            Topic name.
 
-        Returns:
-            TopicPaths with data and lock file paths.
+        Returns
+        -------
+        TopicPaths
+            Paths for the topic's data and lock files.
 
         """
         safe = _topic_to_filename(topic)
@@ -115,18 +131,23 @@ class QueueStore:
         )
 
     @contextlib.contextmanager
-    def lock_topic(self, topic: str, *, exclusive: bool) -> typ.Iterator[None]:
+    def lock_topic(self, topic: str, *, exclusive: bool) -> cabc.Iterator[None]:
         """Lock a topic via its dedicated lock file.
 
         We lock the lock file (never replaced), so we can safely replace the
         data file atomically.
 
-        Args:
-            topic: The topic to lock.
-            exclusive: True for exclusive lock (write), False for shared (read).
+        Parameters
+        ----------
+        topic : str
+            Topic to lock.
+        exclusive : bool
+            True for exclusive lock (write), False for shared (read).
 
-        Yields:
-            None (context manager for locking).
+        Yields
+        ------
+        None
+            Context manager scope for the lock.
 
         """
         self.ensure_base_dir()
@@ -144,24 +165,10 @@ class QueueStore:
                     fcntl.flock(lf.fileno(), fcntl.LOCK_UN)
 
     # TODO(leynos): https://github.com/leynos/claude-q/issues/123
-    # TODO(leynos): https://github.com/leynos/claude-q/issues/123
     def _load_messages_unlocked(  # noqa: C901
         self, topic: str
     ) -> list[dict[str, typ.Any]]:
-        """Load messages from topic file without acquiring lock.
-
-        Must be called while holding appropriate lock.
-
-        Args:
-            topic: The topic to load.
-
-        Returns:
-            List of message dictionaries.
-
-        Raises:
-            RuntimeError: If queue file is corrupt.
-
-        """
+        """Load messages from topic file without acquiring a lock."""
         paths = self.paths_for_topic(topic)
         if not paths.data.exists():
             return []
@@ -177,45 +184,41 @@ class QueueStore:
             msg = f"corrupt queue file for topic {topic!r}: {paths.data}"
             raise RuntimeError(msg) from e
 
-        if isinstance(data, dict) and "messages" in data:
-            msgs = data["messages"]
-        else:
-            # Back-compat: allow bare list.
-            msgs = data
+        match data:
+            case {"messages": list() as messages}:
+                msgs = messages
+            case {"messages": _}:
+                msg = (
+                    f"corrupt queue file for topic {topic!r}: {paths.data} "
+                    "(messages not a list)"
+                )
+                # TODO(leynos): https://github.com/leynos/claude-q/issues/123 - FIXME:
+                # RuntimeError preferred for file corruption over TypeError.
+                raise RuntimeError(msg)
+            case list() as messages:
+                # Back-compat: allow bare list.
+                msgs = messages
+            case _:
+                msg = f"corrupt queue file for topic {topic!r}: {paths.data}"
+                raise RuntimeError(msg)
 
-        if not isinstance(msgs, list):
-            msg = (
-                f"corrupt queue file for topic {topic!r}: {paths.data} "
-                "(messages not a list)"
-            )
-            # TODO(leynos): https://github.com/leynos/claude-q/issues/123
-            # RuntimeError preferred for file corruption over TypeError.
-            raise RuntimeError(msg)  # noqa: TRY004
         # Validate minimally.
         out: list[dict[str, typ.Any]] = []
         for m in msgs:
-            if not isinstance(m, dict):
-                continue
-            if "uuid" not in m or "content" not in m:
-                continue
-            out.append(m)
+            match m:
+                case {"uuid": _, "content": _}:
+                    out.append(m)
+                case _:
+                    continue
         return out
 
     def _save_messages_unlocked(
         self, topic: str, messages: list[dict[str, typ.Any]]
     ) -> None:
-        """Save messages to topic file without acquiring lock.
-
-        Must be called while holding exclusive lock.
-
-        Args:
-            topic: The topic to save.
-            messages: List of message dictionaries to save.
-
-        """
+        """Save messages to topic file without acquiring a lock."""
         paths = self.paths_for_topic(topic)
         self.ensure_base_dir()
-        payload: typ.MutableMapping[str, typ.Any] = {
+        payload: dict[str, typ.Any] = {
             "version": 1,
             "topic": topic,
             "messages": messages,
@@ -250,11 +253,16 @@ class QueueStore:
     def append(self, topic: str, content: str) -> str:
         """Append a message to the topic queue.
 
-        Args:
-            topic: The topic to append to.
-            content: The message content.
+        Parameters
+        ----------
+        topic : str
+            Topic to append to.
+        content : str
+            Message content.
 
-        Returns:
+        Returns
+        -------
+        str
             UUID of the created message.
 
         """
@@ -272,10 +280,14 @@ class QueueStore:
     def pop_first(self, topic: str) -> dict[str, typ.Any] | None:
         """Remove and return the first message from the topic queue.
 
-        Args:
-            topic: The topic to dequeue from.
+        Parameters
+        ----------
+        topic : str
+            Topic to dequeue from.
 
-        Returns:
+        Returns
+        -------
+        dict[str, typing.Any] | None
             The first message, or None if queue is empty.
 
         """
@@ -290,10 +302,14 @@ class QueueStore:
     def peek_first(self, topic: str) -> dict[str, typ.Any] | None:
         """Get the first message without removing it.
 
-        Args:
-            topic: The topic to peek at.
+        Parameters
+        ----------
+        topic : str
+            Topic to peek at.
 
-        Returns:
+        Returns
+        -------
+        dict[str, typing.Any] | None
             The first message, or None if queue is empty.
 
         """
@@ -304,11 +320,16 @@ class QueueStore:
     def get_by_uuid(self, topic: str, uid: str) -> dict[str, typ.Any] | None:
         """Get a specific message by UUID.
 
-        Args:
-            topic: The topic containing the message.
-            uid: The message UUID.
+        Parameters
+        ----------
+        topic : str
+            Topic containing the message.
+        uid : str
+            Message UUID.
 
-        Returns:
+        Returns
+        -------
+        dict[str, typing.Any] | None
             The message, or None if not found.
 
         """
@@ -322,11 +343,15 @@ class QueueStore:
     def list_messages(self, topic: str) -> list[dict[str, typ.Any]]:
         """List all messages in a topic.
 
-        Args:
-            topic: The topic to list.
+        Parameters
+        ----------
+        topic : str
+            Topic to list.
 
-        Returns:
-            List of all messages in FIFO order.
+        Returns
+        -------
+        list[dict[str, typing.Any]]
+            Messages in FIFO order.
 
         """
         with self.lock_topic(topic, exclusive=False):
@@ -335,12 +360,17 @@ class QueueStore:
     def delete_by_uuid(self, topic: str, uid: str) -> bool:
         """Delete a specific message by UUID.
 
-        Args:
-            topic: The topic containing the message.
-            uid: The message UUID to delete.
+        Parameters
+        ----------
+        topic : str
+            Topic containing the message.
+        uid : str
+            Message UUID to delete.
 
-        Returns:
-            True if message was deleted, False if not found.
+        Returns
+        -------
+        bool
+            True if the message was deleted, False if not found.
 
         """
         with self.lock_topic(topic, exclusive=True):
@@ -354,13 +384,19 @@ class QueueStore:
     def replace_by_uuid(self, topic: str, uid: str, content: str) -> bool:
         """Replace the content of a specific message.
 
-        Args:
-            topic: The topic containing the message.
-            uid: The message UUID to replace.
-            content: The new content.
+        Parameters
+        ----------
+        topic : str
+            Topic containing the message.
+        uid : str
+            Message UUID to replace.
+        content : str
+            New content.
 
-        Returns:
-            True if message was replaced, False if not found.
+        Returns
+        -------
+        bool
+            True if the message was replaced, False if not found.
 
         """
         with self.lock_topic(topic, exclusive=True):
@@ -380,8 +416,10 @@ def default_base_dir() -> Path:
     Respects Q_DIR environment variable, then XDG_STATE_HOME,
     then falls back to ~/.local/state/q.
 
-    Returns:
-        Path to queue storage directory.
+    Returns
+    -------
+    Path
+        Path to the queue storage directory.
 
     """
     # Prefer explicit env var, then XDG state, then ~/.local/state

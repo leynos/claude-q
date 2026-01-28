@@ -19,11 +19,19 @@ import typing as typ
 from pathlib import Path
 
 from claude_q.git_integration import GitError
+from claude_q.hooks._common import format_dequeue_reason
 from claude_q.hooks._git_subprocess import derive_topic, run_command
 
 
 def main() -> int:
-    """Run the stop hook to dequeue tasks."""
+    """Run the stop hook to dequeue tasks.
+
+    Returns
+    -------
+    int
+        Exit code (0 for hook success or noop).
+
+    """
     try:
         payload: dict[str, typ.Any] = json.load(sys.stdin)
     except Exception:  # noqa: BLE001  # TODO(leynos): https://github.com/leynos/claude-q/issues/123
@@ -52,14 +60,7 @@ def main() -> int:
     # instruction.
     out = {
         "decision": "block",
-        "reason": (
-            f"Dequeued a queued task from topic '{topic}'. "
-            "Treat the following as the user's next prompt and "
-            "complete it.\n\n"
-            "--- BEGIN QUEUED MESSAGE ---\n"
-            f"{msg}\n"
-            "--- END QUEUED MESSAGE ---\n"
-        ),
+        "reason": format_dequeue_reason(topic, msg),
     }
     sys.stdout.write(json.dumps(out))
     return 0

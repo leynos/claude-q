@@ -1,4 +1,13 @@
-"""Helper wrappers around json5kit for JSON5 settings files."""
+"""Helper wrappers around json5kit for JSON5 settings files.
+
+Examples
+--------
+Round-trip JSON5 content::
+
+    settings = loads('{"hooks": {"stop": {"enabled": true}}}')
+    content = dumps(settings)
+
+"""
 
 from __future__ import annotations
 
@@ -11,10 +20,14 @@ import json5kit
 def loads(source: str) -> dict[str, typ.Any]:
     """Parse JSON5 source into a Python dictionary.
 
-    Args:
-        source: Raw JSON5 string.
+    Parameters
+    ----------
+    source : str
+        Raw JSON5 string.
 
-    Returns:
+    Returns
+    -------
+    dict[str, typing.Any]
         Parsed dictionary.
 
     """
@@ -25,10 +38,14 @@ def loads(source: str) -> dict[str, typ.Any]:
 def dumps(data: dict[str, typ.Any]) -> str:
     """Serialize data to JSON5-compatible source.
 
-    Args:
-        data: Dictionary to serialize.
+    Parameters
+    ----------
+    data : dict[str, typing.Any]
+        Dictionary to serialize.
 
-    Returns:
+    Returns
+    -------
+    str
         JSON5-compatible string with stable formatting.
 
     """

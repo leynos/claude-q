@@ -1,7 +1,18 @@
-"""Tests for claude_q.git_integration module."""
+r"""Tests for claude_q.git_integration module.
+
+Exercises git topic derivation helpers using mocked plumbum calls.
+
+Examples
+--------
+Stub git command output::
+
+    mock_git.__getitem__.return_value.return_value = "origin\\n"
+
+"""
 
 from __future__ import annotations
 
+import typing as typ
 from unittest import mock
 
 import pytest
@@ -16,90 +27,79 @@ from claude_q.git_integration import (
 
 
 @mock.patch("claude_q.git_integration.git")
-def test_get_first_remote_success(mock_git: mock.MagicMock) -> None:
-    """Test getting first remote when remotes exist."""
-    mock_git.__getitem__.return_value.return_value = "origin\nupstream\n"
+@pytest.mark.parametrize(
+    ("output", "expected"),
+    [
+        ("origin\nupstream\n", "origin"),
+        ("", ""),
+    ],
+)
+def test_get_first_remote_outputs(
+    mock_git: mock.MagicMock, output: str, expected: str
+) -> None:
+    """Test get_first_remote output cases."""
+    mock_git.__getitem__.return_value.return_value = output
 
     remote = get_first_remote()
-    assert remote == "origin", "should return first remote name"
+    assert remote == expected, "should return expected remote output"
 
 
 @mock.patch("claude_q.git_integration.git")
-def test_get_first_remote_no_remotes(mock_git: mock.MagicMock) -> None:
-    """Test getting first remote when no remotes exist."""
-    mock_git.__getitem__.return_value.return_value = ""
+@pytest.mark.parametrize(
+    ("output", "expected"),
+    [
+        ("main\n", "main"),
+        ("HEAD\n", ""),
+        ("", ""),
+    ],
+)
+def test_get_current_branch_outputs(
+    mock_git: mock.MagicMock, output: str, expected: str
+) -> None:
+    """Test get_current_branch output cases."""
+    mock_git.__getitem__.return_value.return_value = output
 
-    remote = get_first_remote()
-    assert remote == "", "should return empty string when no remotes exist"
+    branch = get_current_branch()
+    assert branch == expected, "should return expected branch output"
 
 
 @mock.patch("claude_q.git_integration.git")
-def test_get_first_remote_git_error(mock_git: mock.MagicMock) -> None:
-    """Test getting first remote when git command fails."""
+@pytest.mark.parametrize(
+    ("output", "expected_state"),
+    [
+        ("true\n", True),
+        ("false\n", False),
+    ],
+)
+def test_is_in_git_worktree_outputs(
+    mock_git: mock.MagicMock, output: str, expected_state: object
+) -> None:
+    """Test is_in_git_worktree output cases."""
+    mock_git.__getitem__.return_value.return_value = output
+
+    assert is_in_git_worktree() is expected_state, (
+        "should return expected worktree state"
+    )
+
+
+@mock.patch("claude_q.git_integration.git")
+@pytest.mark.parametrize(
+    ("func", "expected_value"),
+    [
+        (get_first_remote, ""),
+        (get_current_branch, ""),
+        (is_in_git_worktree, False),
+    ],
+)
+def test_git_helpers_git_error(
+    mock_git: mock.MagicMock,
+    func: typ.Callable[[], str | bool],
+    expected_value: object,
+) -> None:
+    """Test helper fallbacks when git command fails."""
     mock_git.__getitem__.return_value.side_effect = Exception("git error")
 
-    remote = get_first_remote()
-    assert remote == "", "should return empty string on git error"
-
-
-@mock.patch("claude_q.git_integration.git")
-def test_get_current_branch_success(mock_git: mock.MagicMock) -> None:
-    """Test getting current branch when on a branch."""
-    mock_git.__getitem__.return_value.return_value = "main\n"
-
-    branch = get_current_branch()
-    assert branch == "main", "should return branch name"
-
-
-@mock.patch("claude_q.git_integration.git")
-def test_get_current_branch_detached_head(mock_git: mock.MagicMock) -> None:
-    """Test getting current branch when in detached HEAD state."""
-    mock_git.__getitem__.return_value.return_value = "HEAD\n"
-
-    branch = get_current_branch()
-    assert branch == "", "detached HEAD should return empty string"
-
-
-@mock.patch("claude_q.git_integration.git")
-def test_get_current_branch_empty(mock_git: mock.MagicMock) -> None:
-    """Test getting current branch when result is empty."""
-    mock_git.__getitem__.return_value.return_value = ""
-
-    branch = get_current_branch()
-    assert branch == "", "empty output should return empty string"
-
-
-@mock.patch("claude_q.git_integration.git")
-def test_get_current_branch_git_error(mock_git: mock.MagicMock) -> None:
-    """Test getting current branch when git command fails."""
-    mock_git.__getitem__.return_value.side_effect = Exception("git error")
-
-    branch = get_current_branch()
-    assert branch == "", "should return empty string on git error"
-
-
-@mock.patch("claude_q.git_integration.git")
-def test_is_in_git_worktree_true(mock_git: mock.MagicMock) -> None:
-    """Test detecting when inside a git worktree."""
-    mock_git.__getitem__.return_value.return_value = "true\n"
-
-    assert is_in_git_worktree() is True, "should return True when inside worktree"
-
-
-@mock.patch("claude_q.git_integration.git")
-def test_is_in_git_worktree_false(mock_git: mock.MagicMock) -> None:
-    """Test detecting when not inside a git worktree."""
-    mock_git.__getitem__.return_value.return_value = "false\n"
-
-    assert is_in_git_worktree() is False, "should return False when outside worktree"
-
-
-@mock.patch("claude_q.git_integration.git")
-def test_is_in_git_worktree_git_error(mock_git: mock.MagicMock) -> None:
-    """Test detecting worktree when git command fails."""
-    mock_git.__getitem__.return_value.side_effect = Exception("git error")
-
-    assert is_in_git_worktree() is False, "should return False on git error"
+    assert func() == expected_value, "should return fallback on git error"
 
 
 @mock.patch("claude_q.git_integration.is_in_git_worktree")

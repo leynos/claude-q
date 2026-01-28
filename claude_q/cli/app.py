@@ -1,12 +1,22 @@
-"""Command-line interface for claude-q queues."""
+"""Command-line interface for claude-q queues.
+
+Provides the ``q`` CLI for enqueueing and managing topic-based queues.
+
+Examples
+--------
+List messages for a topic::
+
+    q list origin/main
+
+"""
 
 from __future__ import annotations
 
 import sys
 import time
-
-# TODO(leynos): https://github.com/leynos/claude-q/issues/123
-from pathlib import Path  # noqa: TC003
+from pathlib import (
+    Path,  # noqa: TC003  # TODO(leynos): https://github.com/leynos/claude-q/issues/123 - Path required at runtime for CLI annotations.
+)
 
 import cyclopts
 
@@ -30,7 +40,14 @@ app = cyclopts.App(
 
 @app.default
 def main_help() -> None:
-    """Show help message when no command is specified."""
+    """Show the help message when no command is specified.
+
+    Returns
+    -------
+    None
+        None.
+
+    """
     app.parse_args(["--help"])
 
 
@@ -44,11 +61,16 @@ def put(
 
     If topic omitted, first line of editor content is treated as topic.
 
-    Args:
-        topic: Queue topic name (optional).
-        base_dir: Storage directory (overrides Q_DIR and XDG_STATE_HOME).
+    Parameters
+    ----------
+    topic : str | None, optional
+        Queue topic name.
+    base_dir : Path | None, optional
+        Storage directory (overrides Q_DIR and XDG_STATE_HOME).
 
-    Returns:
+    Returns
+    -------
+    int
         Exit code (0 on success).
 
     """
@@ -79,11 +101,16 @@ def readto(
 
     If topic omitted, first line of stdin is treated as topic.
 
-    Args:
-        topic: Queue topic name (optional).
-        base_dir: Storage directory (overrides Q_DIR and XDG_STATE_HOME).
+    Parameters
+    ----------
+    topic : str | None, optional
+        Queue topic name.
+    base_dir : Path | None, optional
+        Storage directory (overrides Q_DIR and XDG_STATE_HOME).
 
-    Returns:
+    Returns
+    -------
+    int
         Exit code (0 on success).
 
     """
@@ -114,13 +141,20 @@ def get(
 ) -> int:
     """Dequeue first message to stdout.
 
-    Args:
-        topic: Queue topic name.
-        block: Block (poll) until a message exists.
-        poll: Polling interval in seconds when --block is used.
-        base_dir: Storage directory (overrides Q_DIR and XDG_STATE_HOME).
+    Parameters
+    ----------
+    topic : str
+        Queue topic name.
+    block : bool, optional
+        Block (poll) until a message exists.
+    poll : float, optional
+        Polling interval in seconds when --block is used.
+    base_dir : Path | None, optional
+        Storage directory (overrides Q_DIR and XDG_STATE_HOME).
 
-    Returns:
+    Returns
+    -------
+    int
         Exit code (0 if message found, 1 if queue empty).
 
     """
@@ -152,12 +186,18 @@ def peek(
 ) -> int:
     """Print message without removing it.
 
-    Args:
-        topic: Queue topic name.
-        uuid: Message UUID (optional; defaults to first message).
-        base_dir: Storage directory (overrides Q_DIR and XDG_STATE_HOME).
+    Parameters
+    ----------
+    topic : str
+        Queue topic name.
+    uuid : str | None, optional
+        Message UUID (defaults to the first message).
+    base_dir : Path | None, optional
+        Storage directory (overrides Q_DIR and XDG_STATE_HOME).
 
-    Returns:
+    Returns
+    -------
+    int
         Exit code (0 if message found, 1 if not found).
 
     """
@@ -189,12 +229,18 @@ def list_cmd(
 ) -> int:
     """List messages with UUID and a summary.
 
-    Args:
-        topic: Queue topic name.
-        quiet: Only print UUIDs (no summaries).
-        base_dir: Storage directory (overrides Q_DIR and XDG_STATE_HOME).
+    Parameters
+    ----------
+    topic : str
+        Queue topic name.
+    quiet : bool, optional
+        Only print UUIDs (no summaries).
+    base_dir : Path | None, optional
+        Storage directory (overrides Q_DIR and XDG_STATE_HOME).
 
-    Returns:
+    Returns
+    -------
+    int
         Exit code (0 on success).
 
     """
@@ -224,12 +270,18 @@ def del_cmd(
 ) -> int:
     """Delete message by UUID.
 
-    Args:
-        topic: Queue topic name.
-        uuid: Message UUID.
-        base_dir: Storage directory (overrides Q_DIR and XDG_STATE_HOME).
+    Parameters
+    ----------
+    topic : str
+        Queue topic name.
+    uuid : str
+        Message UUID.
+    base_dir : Path | None, optional
+        Storage directory (overrides Q_DIR and XDG_STATE_HOME).
 
-    Returns:
+    Returns
+    -------
+    int
         Exit code (0 if deleted, 1 if not found).
 
     """
@@ -252,12 +304,18 @@ def edit(
 ) -> int:
     """Open message in $EDITOR, then replace it.
 
-    Args:
-        topic: Queue topic name.
-        uuid: Message UUID.
-        base_dir: Storage directory (overrides Q_DIR and XDG_STATE_HOME).
+    Parameters
+    ----------
+    topic : str
+        Queue topic name.
+    uuid : str
+        Message UUID.
+    base_dir : Path | None, optional
+        Storage directory (overrides Q_DIR and XDG_STATE_HOME).
 
-    Returns:
+    Returns
+    -------
+    int
         Exit code (0 if replaced, 1 if not found).
 
     """
@@ -288,12 +346,18 @@ def replace(
 ) -> int:
     """Replace message content from stdin.
 
-    Args:
-        topic: Queue topic name.
-        uuid: Message UUID.
-        base_dir: Storage directory (overrides Q_DIR and XDG_STATE_HOME).
+    Parameters
+    ----------
+    topic : str
+        Queue topic name.
+    uuid : str
+        Message UUID.
+    base_dir : Path | None, optional
+        Storage directory (overrides Q_DIR and XDG_STATE_HOME).
 
-    Returns:
+    Returns
+    -------
+    int
         Exit code (0 if replaced, 1 if not found).
 
     """
@@ -311,7 +375,9 @@ def replace(
 def main() -> int:
     """Run the q CLI.
 
-    Returns:
+    Returns
+    -------
+    int
         Exit code.
 
     """

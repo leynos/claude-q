@@ -16,6 +16,7 @@ import sys
 
 from claude_q.core import QueueStore, default_base_dir
 from claude_q.git_integration import GitError, derive_topic
+from claude_q.hooks._common import format_dequeue_reason
 
 
 def main() -> int:
@@ -23,7 +24,9 @@ def main() -> int:
 
     Derives topic from git context and attempts to dequeue a message.
 
-    Returns:
+    Returns
+    -------
+    int
         Always 0 (hooks must not block on error).
 
     """
@@ -48,14 +51,7 @@ def main() -> int:
 
     # Message found - block stop and feed it back to Claude
     content = str(msg.get("content", ""))
-    reason = (
-        f"Dequeued a queued task from topic '{topic}'. "
-        "Treat the following as the user's next prompt and "
-        "complete it.\n\n"
-        "--- BEGIN QUEUED MESSAGE ---\n"
-        f"{content}\n"
-        "--- END QUEUED MESSAGE ---\n"
-    )
+    reason = format_dequeue_reason(topic, content)
     output = {
         "decision": "block",
         "reason": reason,

@@ -3,20 +3,20 @@
 ## Topic-based FIFO queues for Claude Code session continuity
 
 `claude-q` provides simple, reliable task queuing that integrates seamlessly
-with Claude Code. Queue tasks when you think of them, and Claude automatically
-picks them up when ready—perfect for maintaining context across sessions and
+with Claude Code. Tasks can be queued as they arise, and Claude automatically
+picks them up when ready—ideal for maintaining context across sessions and
 managing async workflows.
 
 ## Why claude-q?
 
-When working with Claude Code, you often think of tasks while in the middle of
-something else:
+When working with Claude Code, tasks often arise while another activity is
+already in progress:
 
-- "I should refactor that module… but not now"
-- "Need to add tests for this… after the current feature"
-- "This would be a good time to update the docs"
+- "Refactor that module later"
+- "Add tests after the current feature"
+- "Update the docs"
 
-Instead of interrupting your flow or forgetting these tasks, queue them with
+Instead of interrupting ongoing work or forgetting tasks, queue them with
 `=qput` and let Claude handle them when the time is right.
 
 ## Quick Start
@@ -57,8 +57,8 @@ q get origin:main --block
 
 ### 🎯 Topic-Based Organization
 
-Messages are organized by topics (typically `remote:branch`), keeping your
-queues organized and context-aware.
+Messages are organized by topics (typically `remote:branch`), keeping queues
+organized and context-aware.
 
 ```bash
 # Different projects, different queues
@@ -82,7 +82,7 @@ across sessions:
 1. Queue tasks with `=qput` during a session
 2. End the Claude session
 3. **Claude automatically dequeues and starts the next task**
-4. Your workflow continues uninterrupted
+4. Workflow continues uninterrupted
 
 ### ⚡ Simple, Reliable
 
@@ -267,13 +267,13 @@ Implement rate limiting for API:
 
 ### Automatic Dequeue on Stop
 
-When you end a Claude session, the stop hook automatically dequeues the next
-task and feeds it back as your next prompt. Your workflow continues seamlessly.
+When a Claude session ends, the stop hook automatically dequeues the next task
+and feeds it back as the next prompt. Workflow continues seamlessly.
 
 ### Workflow Example
 
 ```bash
-# During a session, you think of several tasks:
+# During a session, several tasks arise:
 =qput Add error handling to user registration
 =qput Write tests for authentication flow
 =qput Update API documentation
@@ -360,7 +360,7 @@ Contributions welcome! Please:
 2. Add tests for new functionality
 3. Update documentation as needed
 
-## Acknowledgments
+## Acknowledgements
 
 Built with:
 

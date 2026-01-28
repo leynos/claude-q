@@ -4,6 +4,14 @@
 Intercepts prompts starting with "=qput" and enqueues the message body into the
 git-derived queue for the current working directory. Intended to be invoked as
 a Claude Code UserPromptSubmit hook, receiving JSON on stdin.
+
+Examples
+--------
+CLI hooks typically receive a JSON payload on stdin::
+
+    echo '{"prompt": "=qput Write release notes", "cwd": "/repo"}' | \
+        q-user-prompt-submit-qput
+
 """
 
 from __future__ import annotations
@@ -21,7 +29,14 @@ from claude_q.hooks._git_subprocess import derive_topic, run_command
 
 
 def main() -> int:
-    """Run the prompt hook to intercept =qput commands."""
+    """Run the prompt hook to intercept =qput commands.
+
+    Returns
+    -------
+    int
+        Exit code (0 to allow prompt, 2 to block with an error).
+
+    """
     try:
         payload: dict[str, typ.Any] = json.load(sys.stdin)
     except Exception:  # noqa: BLE001  # TODO(leynos): https://github.com/leynos/claude-q/issues/123

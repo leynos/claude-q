@@ -2,6 +2,13 @@
 
 Uses json5kit to parse JSON5 settings and writes normalized output while
 adding hook entries.
+
+Examples
+--------
+Dry-run a hook installation::
+
+    q-install-hooks --dry-run
+
 """
 
 from __future__ import annotations
@@ -25,14 +32,20 @@ app = cyclopts.App(
 def find_settings_file(settings_path: Path | None = None) -> Path:
     """Find Claude Code settings.json file.
 
-    Args:
-        settings_path: Optional explicit path to settings.json.
+    Parameters
+    ----------
+    settings_path : Path | None, optional
+        Optional explicit path to settings.json.
 
-    Returns:
+    Returns
+    -------
+    Path
         Path to settings.json.
 
-    Raises:
-        FileNotFoundError: If settings.json cannot be found.
+    Raises
+    ------
+    FileNotFoundError
+        If settings.json cannot be found.
 
     """
     if settings_path:
@@ -67,8 +80,10 @@ def find_settings_file(settings_path: Path | None = None) -> Path:
 def verify_hook_commands() -> list[str]:
     """Verify that hook command executables are available on PATH.
 
-    Returns:
-        List of warnings for missing executables.
+    Returns
+    -------
+    list[str]
+        Warnings for missing executables.
 
     """
     return [
@@ -80,7 +95,7 @@ def verify_hook_commands() -> list[str]:
 
 @app.default
 # TODO(leynos): https://github.com/leynos/claude-q/issues/123
-def install(  # noqa: C901, PLR0911
+def install(  # noqa: C901, PLR0911, PLR0912, PLR0915
     *,
     settings_path: Path | None = None,
     dry_run: bool = False,
@@ -91,12 +106,18 @@ def install(  # noqa: C901, PLR0911
     Creates backup before modifying settings.json.
     Operation is idempotent - safe to run multiple times.
 
-    Args:
-        settings_path: Path to settings.json (auto-detected if not specified).
-        dry_run: Show what would be done without making changes.
-        force: Overwrite existing hook entries if present.
+    Parameters
+    ----------
+    settings_path : Path | None, optional
+        Path to settings.json (auto-detected if not specified).
+    dry_run : bool, optional
+        Show what would be done without making changes.
+    force : bool, optional
+        Overwrite existing hook entries if present.
 
-    Returns:
+    Returns
+    -------
+    int
         Exit code (0 on success, 1 on error).
 
     """
@@ -118,12 +139,6 @@ def install(  # noqa: C901, PLR0911
     for warning in warnings:
         sys.stdout.write(f"{warning}\n")
 
-    if dry_run:
-        sys.stdout.write("\n[DRY RUN] Would install hooks:\n")
-        sys.stdout.write("  - stop: q-stop-hook\n")
-        sys.stdout.write("  - userPromptSubmit: q-prompt-hook\n")
-        return 0
-
     # Create timestamped backup
     timestamp = dt.datetime.now(tz=dt.UTC).strftime("%Y%m%d_%H%M%S")
     backup_path = settings_file.with_suffix(f".backup.{timestamp}.json")
@@ -142,10 +157,15 @@ def install(  # noqa: C901, PLR0911
         return 1
 
     # Ensure hooks object exists
-    if "hooks" not in settings:
-        settings["hooks"] = {}
-
-    hooks = settings["hooks"]
+    match settings.get("hooks"):
+        case None:
+            settings["hooks"] = {}
+            hooks = settings["hooks"]
+        case dict() as hooks:
+            pass
+        case _:
+            sys.stderr.write("Error: settings.json hooks must be an object.\n")
+            return 1
 
     # Check for existing hooks
     has_stop = "stop" in hooks
@@ -160,6 +180,12 @@ def install(  # noqa: C901, PLR0911
             sys.stdout.write(f"  userPromptSubmit: {prompt_hook}\n")
         sys.stdout.write("\nUse --force to overwrite existing hooks.\n")
         return 1
+
+    if dry_run:
+        sys.stdout.write("\n[DRY RUN] Would install hooks:\n")
+        sys.stdout.write("  - stop: q-stop-hook\n")
+        sys.stdout.write("  - userPromptSubmit: q-prompt-hook\n")
+        return 0
 
     # Add or update hooks
     hooks["stop"] = {"command": "q-stop-hook", "enabled": True}
@@ -183,7 +209,9 @@ def install(  # noqa: C901, PLR0911
 def main() -> int:
     """Run the installer CLI.
 
-    Returns:
+    Returns
+    -------
+    int
         Exit code.
 
     """

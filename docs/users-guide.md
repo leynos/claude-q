@@ -1,7 +1,8 @@
 # claude-q Users' Guide
 
 claude-q provides topic-based FIFO queues that integrate with Claude Code. It
-lets you queue tasks for later and automatically resume them in future sessions.
+supports queuing tasks for later and automatically resuming them in future
+sessions.
 
 ## Core concepts
 
@@ -16,8 +17,8 @@ The `q` command operates on explicit topics:
 - `q put [topic]` opens `$EDITOR` and enqueues a message. If no topic is
   supplied, the first line of the editor text is treated as the topic.
 - `q readto [topic]` reads from stdin and enqueues the message.
-- `q get <topic>` dequeues the first message. Use `--block` to poll until a
-  message exists.
+- `q get <topic>` dequeues the first message. With `--block`, polling continues
+  until a message exists.
 - `q peek <topic> [uuid]` prints a message without removing it.
 - `q list <topic>` lists messages with UUIDs and summaries.
 - `q del <topic> <uuid>` deletes a message by UUID.
@@ -48,8 +49,8 @@ By default, the installer looks for `settings.json` in:
 - `$XDG_CONFIG_HOME/claude/settings.json`
 - `~/.claude/settings.json`
 
-If hook executables are missing from `PATH`, installation fails unless you pass
-`--force`.
+If hook executables are missing from `PATH`, installation fails unless the
+`--force` flag is used.
 
 ### Dry run
 
@@ -67,10 +68,10 @@ Run:
 q-uninstall-hooks
 ```
 
-Use `--dry-run` to see which hooks would be removed based on the current
+The `--dry-run` flag shows which hooks would be removed based on the current
 settings file.
 
-## Hook behavior
+## Hook behaviour
 
 - `q-prompt-hook` intercepts prompts starting with `=qput` and queues the
   remainder of the message.
@@ -81,8 +82,8 @@ settings file.
 
 The queue storage directory defaults to:
 
-- `$Q_DIR` if set
-- `$XDG_STATE_HOME/q` if set
+- `$Q_DIR` when set
+- `$XDG_STATE_HOME/q` when set
 - `~/.local/state/q` otherwise
 
-Pass `--dir` to override the base directory for a single command.
+The `--dir` flag overrides the base directory for a single command.

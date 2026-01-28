@@ -35,7 +35,9 @@ def main() -> int:
 
     Reads JSON payload from stdin, checks for =qput prefix, enqueues if found.
 
-    Returns:
+    Returns
+    -------
+    int
         0 if allowing prompt or successfully blocked, 2 if blocking with error.
 
     """
@@ -70,7 +72,7 @@ def main() -> int:
     store = QueueStore(default_base_dir())
     try:
         store.append(topic, body)
-    except Exception as e:  # noqa: BLE001  # TODO(leynos): https://github.com/leynos/claude-q/issues/123
+    except Exception as e:  # noqa: BLE001  # TODO(leynos): https://github.com/leynos/claude-q/issues/123 - QueueStore I/O errors.
         return block_with_message(
             f"qput: failed to enqueue to '{topic}': {e}",
             use_exit2=use_exit2,

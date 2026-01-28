@@ -2,6 +2,13 @@
 
 Uses json5kit to parse JSON5 settings and writes normalized output while
 removing hook entries.
+
+Examples
+--------
+Remove hook entries from settings.json::
+
+    q-uninstall-hooks
+
 """
 
 from __future__ import annotations
@@ -9,7 +16,7 @@ from __future__ import annotations
 import datetime as dt
 import sys
 from pathlib import (
-    Path,  # noqa: TC003  # TODO(leynos): https://github.com/leynos/claude-q/issues/123
+    Path,  # noqa: TC003  # TODO(leynos): https://github.com/leynos/claude-q/issues/123 - Path required for CLI annotations.
 )
 
 import cyclopts
@@ -25,7 +32,7 @@ app = cyclopts.App(
 
 @app.default
 # TODO(leynos): https://github.com/leynos/claude-q/issues/123
-def uninstall(  # noqa: C901, PLR0911, PLR0912
+def uninstall(  # noqa: C901, PLR0911, PLR0912, PLR0915
     *,
     settings_path: Path | None = None,
     dry_run: bool = False,
@@ -35,11 +42,16 @@ def uninstall(  # noqa: C901, PLR0911, PLR0912
     Creates backup before modifying settings.json.
     Operation is idempotent - safe to run multiple times.
 
-    Args:
-        settings_path: Path to settings.json (auto-detected if not specified).
-        dry_run: Show what would be done without making changes.
+    Parameters
+    ----------
+    settings_path : Path | None, optional
+        Path to settings.json (auto-detected if not specified).
+    dry_run : bool, optional
+        Show what would be done without making changes.
 
-    Returns:
+    Returns
+    -------
+    int
         Exit code (0 on success, 1 on error).
 
     """
@@ -59,11 +71,15 @@ def uninstall(  # noqa: C901, PLR0911, PLR0912
         return 1
 
     # Check if hooks exist
-    if "hooks" not in settings:
-        sys.stdout.write("\nNo hooks configured - nothing to remove.\n")
-        return 0
-
-    hooks = settings["hooks"]
+    match settings.get("hooks"):
+        case None:
+            sys.stdout.write("\nNo hooks configured - nothing to remove.\n")
+            return 0
+        case dict() as hooks:
+            pass
+        case _:
+            sys.stderr.write("Error: settings.json hooks must be an object.\n")
+            return 1
     has_stop = "stop" in hooks
     has_prompt = "userPromptSubmit" in hooks
 
@@ -122,7 +138,9 @@ def uninstall(  # noqa: C901, PLR0911, PLR0912
 def main() -> int:
     """Run the uninstaller CLI.
 
-    Returns:
+    Returns
+    -------
+    int
         Exit code.
 
     """

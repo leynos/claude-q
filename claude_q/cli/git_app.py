@@ -1,12 +1,22 @@
-"""Git-aware CLI commands for claude-q."""
+"""Git-aware CLI commands for claude-q.
+
+Provides the ``git-q`` CLI with topic derivation from git context.
+
+Examples
+--------
+Enqueue a message for the current repository::
+
+    git-q readto
+
+"""
 
 from __future__ import annotations
 
 import sys
 import time
-
-# TODO(leynos): https://github.com/leynos/claude-q/issues/123
-from pathlib import Path  # noqa: TC003
+from pathlib import (
+    Path,  # noqa: TC003  # TODO(leynos): https://github.com/leynos/claude-q/issues/123 - Path required at runtime for CLI annotations.
+)
 
 import cyclopts
 
@@ -26,7 +36,14 @@ git_app = cyclopts.App(
 
 @git_app.default
 def git_main_help() -> None:
-    """Show help message when no command is specified."""
+    """Show the help message when no command is specified.
+
+    Returns
+    -------
+    None
+        None.
+
+    """
     git_app.parse_args(["--help"])
 
 
@@ -34,10 +51,14 @@ def git_main_help() -> None:
 def git_put(*, base_dir: Path | None = None) -> int:
     """Open $EDITOR, enqueue into git-derived topic.
 
-    Args:
-        base_dir: Storage directory (overrides Q_DIR and XDG_STATE_HOME).
+    Parameters
+    ----------
+    base_dir : Path | None, optional
+        Storage directory (overrides Q_DIR and XDG_STATE_HOME).
 
-    Returns:
+    Returns
+    -------
+    int
         Exit code (0 on success).
 
     """
@@ -58,10 +79,14 @@ def git_put(*, base_dir: Path | None = None) -> int:
 def git_readto(*, base_dir: Path | None = None) -> int:
     """Read stdin, enqueue into git-derived topic.
 
-    Args:
-        base_dir: Storage directory (overrides Q_DIR and XDG_STATE_HOME).
+    Parameters
+    ----------
+    base_dir : Path | None, optional
+        Storage directory (overrides Q_DIR and XDG_STATE_HOME).
 
-    Returns:
+    Returns
+    -------
+    int
         Exit code (0 on success).
 
     """
@@ -87,12 +112,18 @@ def git_get(
 ) -> int:
     """Dequeue from git-derived topic.
 
-    Args:
-        block: Block (poll) until a message exists.
-        poll: Polling interval in seconds when --block is used.
-        base_dir: Storage directory (overrides Q_DIR and XDG_STATE_HOME).
+    Parameters
+    ----------
+    block : bool, optional
+        Block (poll) until a message exists.
+    poll : float, optional
+        Polling interval in seconds when --block is used.
+    base_dir : Path | None, optional
+        Storage directory (overrides Q_DIR and XDG_STATE_HOME).
 
-    Returns:
+    Returns
+    -------
+    int
         Exit code (0 if message found, 1 if queue empty).
 
     """
@@ -120,7 +151,9 @@ def git_get(
 def git_q_main() -> int:
     """Run the git-q CLI.
 
-    Returns:
+    Returns
+    -------
+    int
         Exit code.
 
     """

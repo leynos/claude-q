@@ -1,4 +1,16 @@
-"""CLI entry points for claude-q."""
+"""CLI entry points for claude-q.
+
+Provides the top-level CLI apps used by the console script entry points.
+
+Examples
+--------
+Import the entry points for programmatic invocation::
+
+    from claude_q.cli import main, git_q_main
+
+    main()
+
+"""
 
 from __future__ import annotations
 
