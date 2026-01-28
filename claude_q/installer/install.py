@@ -1,13 +1,19 @@
 """Install claude-q hooks into Claude Code settings.
 
-Uses json5kit to parse JSON5 settings and writes normalized output while
-adding hook entries.
+Uses json5kit to parse JSON5 settings and writes normalized output while adding
+hook entries.
 
 Examples
 --------
 Dry-run a hook installation::
 
     q-install-hooks --dry-run
+
+Invoke the installer programmatically::
+
+    from claude_q.installer.install import install
+
+    install(dry_run=True)
 
 """
 

@@ -1,12 +1,18 @@
 """Git-aware CLI commands for claude-q.
 
-Provides the ``git-q`` CLI with topic derivation from git context.
+Provides the ``git-q`` command suite with topic derivation from the current git
+repository, so callers do not have to pass explicit topic names.
+Subcommands mirror ``q`` (``put``, ``readto``, ``get``) but infer the topic.
 
 Examples
 --------
-Enqueue a message for the current repository::
+Enqueue a message for the current repository from stdin::
 
     git-q readto
+
+Dequeue a message (blocking until available)::
+
+    git-q get --block
 
 """
 

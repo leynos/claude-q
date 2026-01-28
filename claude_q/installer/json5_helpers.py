@@ -7,6 +7,9 @@ Round-trip JSON5 content::
     settings = loads('{"hooks": {"stop": {"enabled": true}}}')
     content = dumps(settings)
 
+The helpers return plain dictionaries and raise ``ValueError`` or ``TypeError``
+if the JSON5 source is invalid.
+
 """
 
 from __future__ import annotations

@@ -93,6 +93,7 @@ select = [
 extend-ignore = [
     "D203",  # Conflicts with D211; prefer enforcing no blank line before class docstring.
     "D213",  # Conflicts with D212; keep summary on the first line.
+    "TD001", # Allow FIXME task tags without invalid-tag failures.
 ]
 task-tags = ["TODO", "FIXME"]
 

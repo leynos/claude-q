@@ -31,6 +31,13 @@ from claude_q.hooks._git_subprocess import derive_topic, run_command
 def main() -> int:
     """Run the prompt hook to intercept =qput commands.
 
+    Parses the stdin JSON payload, detects the ``=qput`` prefix, and enqueues
+    the message body into the git-derived queue.
+
+    Parameters
+    ----------
+    None
+
     Returns
     -------
     int

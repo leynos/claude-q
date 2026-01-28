@@ -1,12 +1,19 @@
 """Command-line interface for claude-q queues.
 
-Provides the ``q`` CLI for enqueueing and managing topic-based queues.
+Provides the ``q`` CLI for enqueueing, inspecting, and managing topic-based
+queues stored on disk. Subcommands include ``put``, ``readto``, ``get``,
+``peek``, ``list``, ``del``, ``edit``, and ``replace`` with shared options such
+as ``--dir`` for storage overrides.
 
 Examples
 --------
 List messages for a topic::
 
     q list origin/main
+
+Enqueue a message with the editor::
+
+    q put origin/main
 
 """
 

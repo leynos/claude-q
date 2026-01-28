@@ -1,11 +1,16 @@
 """Subprocess-based git helpers for hook wrappers.
 
 Uses subprocess to query git state for a specific working directory, matching
-the behaviour of the plumbum-backed helpers.
+the behaviour of the plumbum-backed helpers. Intended for hook wrappers that
+need git context without importing the main CLI. Exposes ``run_command``,
+``get_first_remote``, ``get_current_branch``, ``is_in_git_worktree``, and
+``derive_topic``.
 
 Examples
 --------
 Call helpers with an explicit working directory::
+
+    from claude_q.hooks._git_subprocess import derive_topic
 
     topic = derive_topic("/repo")
 
@@ -13,7 +18,7 @@ Call helpers with an explicit working directory::
 
 from __future__ import annotations
 
-import subprocess  # noqa: S404  # TODO(leynos): https://github.com/leynos/claude-q/issues/123 - Hook helper subprocesses.
+import subprocess  # noqa: S404  # FIXME(leynos): https://github.com/leynos/claude-q/issues/123 - Hook helper subprocesses.
 
 from claude_q.git_integration import GitError, combine_topic
 
@@ -41,7 +46,7 @@ def run_command(
         Completed process with stdout/stderr/returncode.
 
     """
-    return subprocess.run(  # noqa: S603  # TODO(leynos): https://github.com/leynos/claude-q/issues/123 - Controlled git command list.
+    return subprocess.run(  # noqa: S603  # FIXME(leynos): https://github.com/leynos/claude-q/issues/123 - Controlled git command list.
         cmd,
         cwd=cwd,
         text=True,

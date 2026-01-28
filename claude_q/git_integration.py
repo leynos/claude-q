@@ -1,7 +1,9 @@
 """Git integration helpers for deriving queue topics from repository context.
 
 These helpers wrap git queries and assemble queue topics based on the current
-repository state.
+repository state. Callers typically use ``derive_topic`` to build a queue topic
+string from ``get_first_remote`` and ``get_current_branch`` when inside a
+worktree.
 
 Examples
 --------
@@ -10,6 +12,8 @@ Derive a topic for the current working directory::
     from claude_q.git_integration import derive_topic
 
     topic = derive_topic()
+
+``derive_topic`` raises ``GitError`` when the repository context is missing.
 
 """
 

@@ -11,6 +11,14 @@ Format a dequeue reason for a hook response::
 
     reason = format_dequeue_reason("origin/main", "Fix tests")
 
+Hook entry points typically parse input and emit formatted output::
+
+    payload = json.load(sys.stdin)
+    body = extract_qput_body(payload.get("prompt", ""))
+    out = format_dequeue_reason("origin/main", body or "")
+
+Hook wrappers in ``bins/`` consume stdin JSON and emit JSON responses.
+
 """
 
 from __future__ import annotations

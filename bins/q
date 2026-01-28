@@ -62,9 +62,10 @@ def _editor_cmd() -> list[str]:
     editor = os.environ.get("VISUAL") or os.environ.get("EDITOR") or "vi"
     # Allow things like: "code --wait"
     try:
-        return shlex.split(editor)
+        tokens = shlex.split(editor)
     except ValueError:
-        return [editor]
+        return ["vi"]
+    return tokens or ["vi"]
 
 
 def _edit_text(initial: str = "") -> str:

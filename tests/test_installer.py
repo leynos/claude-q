@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import json
 from pathlib import (
-    Path,  # noqa: TC003  # TODO(leynos): https://github.com/leynos/claude-q/issues/123 - FIXME: Path required at runtime for fixture hints.
+    Path,  # noqa: TC003  # FIXME(leynos): https://github.com/leynos/claude-q/issues/123 - Path required at runtime for fixture hints.
 )
 
-import pytest  # noqa: TC002  # TODO(leynos): https://github.com/leynos/claude-q/issues/123 - FIXME: pytest required at runtime for fixture hints.
+import pytest  # noqa: TC002  # FIXME(leynos): https://github.com/leynos/claude-q/issues/123 - pytest required at runtime for fixture hints.
 
 from claude_q.installer import install as install_module
 from claude_q.installer.install import find_settings_file

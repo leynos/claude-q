@@ -1,14 +1,20 @@
 """CLI entry points for claude-q.
 
-Provides the top-level CLI apps used by the console script entry points.
+Provides the console-script entry points for running the ``q`` and ``git-q``
+command suites programmatically.
 
 Examples
 --------
-Import the entry points for programmatic invocation::
+Invoke the CLI entry points directly::
 
     from claude_q.cli import main, git_q_main
 
     main()
+
+Run the CLI from the command line (via console scripts)::
+
+    q --help
+    git-q --help
 
 """
 

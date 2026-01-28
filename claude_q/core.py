@@ -2,14 +2,18 @@
 
 Provides file-based FIFO queue storage with fcntl locking for safe concurrent
 access. Each topic is stored as a separate JSON file with an associated lock
-file for coordination.
+file for coordination. ``QueueStore`` exposes enqueue, dequeue, and peek
+operations via ``append()``, ``pop_first()``, and ``peek_first()``.
 
 Examples
 --------
-Append and pop messages from a queue::
+Enqueue, peek, and dequeue messages from a queue::
+
+    from claude_q.core import QueueStore, default_base_dir
 
     store = QueueStore(default_base_dir())
     store.append("origin/main", "Follow up on tests")
+    first = store.peek_first("origin/main")
     next_msg = store.pop_first("origin/main")
 
 """

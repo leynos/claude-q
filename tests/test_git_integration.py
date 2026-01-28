@@ -1,6 +1,8 @@
-r"""Tests for claude_q.git_integration module.
+r"""Tests for claude_q.git_integration.
 
-Exercises git topic derivation helpers using mocked plumbum calls.
+Covers repository discovery, branch/remote parsing, and topic derivation. Git
+interactions are mocked by patching the plumbum ``git`` command object to return
+fixed stdout or raise exceptions.
 
 Examples
 --------
@@ -12,7 +14,6 @@ Stub git command output::
 
 from __future__ import annotations
 
-import typing as typ
 from unittest import mock
 
 import pytest
@@ -28,17 +29,21 @@ from claude_q.git_integration import (
 
 @mock.patch("claude_q.git_integration.git")
 @pytest.mark.parametrize(
-    ("output", "expected"),
+    ("result", "expected"),
     [
         ("origin\nupstream\n", "origin"),
         ("", ""),
+        (Exception("git error"), ""),
     ],
 )
 def test_get_first_remote_outputs(
-    mock_git: mock.MagicMock, output: str, expected: str
+    mock_git: mock.MagicMock, result: str | Exception, expected: str
 ) -> None:
     """Test get_first_remote output cases."""
-    mock_git.__getitem__.return_value.return_value = output
+    if isinstance(result, Exception):
+        mock_git.__getitem__.return_value.side_effect = result
+    else:
+        mock_git.__getitem__.return_value.return_value = result
 
     remote = get_first_remote()
     assert remote == expected, "should return expected remote output"
@@ -46,18 +51,22 @@ def test_get_first_remote_outputs(
 
 @mock.patch("claude_q.git_integration.git")
 @pytest.mark.parametrize(
-    ("output", "expected"),
+    ("result", "expected"),
     [
         ("main\n", "main"),
         ("HEAD\n", ""),
         ("", ""),
+        (Exception("git error"), ""),
     ],
 )
 def test_get_current_branch_outputs(
-    mock_git: mock.MagicMock, output: str, expected: str
+    mock_git: mock.MagicMock, result: str | Exception, expected: str
 ) -> None:
     """Test get_current_branch output cases."""
-    mock_git.__getitem__.return_value.return_value = output
+    if isinstance(result, Exception):
+        mock_git.__getitem__.return_value.side_effect = result
+    else:
+        mock_git.__getitem__.return_value.return_value = result
 
     branch = get_current_branch()
     assert branch == expected, "should return expected branch output"
@@ -65,41 +74,25 @@ def test_get_current_branch_outputs(
 
 @mock.patch("claude_q.git_integration.git")
 @pytest.mark.parametrize(
-    ("output", "expected_state"),
+    ("result", "expected_state"),
     [
         ("true\n", True),
         ("false\n", False),
+        (Exception("git error"), False),
     ],
 )
 def test_is_in_git_worktree_outputs(
-    mock_git: mock.MagicMock, output: str, expected_state: object
+    mock_git: mock.MagicMock, result: str | Exception, expected_state: object
 ) -> None:
     """Test is_in_git_worktree output cases."""
-    mock_git.__getitem__.return_value.return_value = output
+    if isinstance(result, Exception):
+        mock_git.__getitem__.return_value.side_effect = result
+    else:
+        mock_git.__getitem__.return_value.return_value = result
 
     assert is_in_git_worktree() is expected_state, (
         "should return expected worktree state"
     )
-
-
-@mock.patch("claude_q.git_integration.git")
-@pytest.mark.parametrize(
-    ("func", "expected_value"),
-    [
-        (get_first_remote, ""),
-        (get_current_branch, ""),
-        (is_in_git_worktree, False),
-    ],
-)
-def test_git_helpers_git_error(
-    mock_git: mock.MagicMock,
-    func: typ.Callable[[], str | bool],
-    expected_value: object,
-) -> None:
-    """Test helper fallbacks when git command fails."""
-    mock_git.__getitem__.return_value.side_effect = Exception("git error")
-
-    assert func() == expected_value, "should return fallback on git error"
 
 
 @mock.patch("claude_q.git_integration.is_in_git_worktree")

@@ -24,6 +24,10 @@ def main() -> int:
 
     Derives topic from git context and attempts to dequeue a message.
 
+    Parameters
+    ----------
+    None
+
     Returns
     -------
     int

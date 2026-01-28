@@ -9,6 +9,12 @@ Remove hook entries from settings.json::
 
     q-uninstall-hooks
 
+Invoke the uninstaller programmatically::
+
+    from claude_q.installer.uninstall import uninstall
+
+    uninstall(dry_run=True)
+
 """
 
 from __future__ import annotations

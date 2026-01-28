@@ -1,8 +1,13 @@
 r"""Helper utilities for the claude-q CLI commands.
 
+Provides editor invocation, stdin handling, topic parsing, and summary helpers
+shared across CLI entry points.
+
 Examples
 --------
 Split editor text into topic and body::
+
+    from claude_q.cli.helpers import split_topic_and_body
 
     topic, body = split_topic_and_body("topic\\nbody")
 
