@@ -26,10 +26,6 @@ from claude_q.hooks._git_subprocess import derive_topic, run_command
 def main() -> int:
     """Run the stop hook to dequeue tasks.
 
-    Parameters
-    ----------
-    None
-
     Returns
     -------
     int

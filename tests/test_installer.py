@@ -1,4 +1,14 @@
-"""Tests for claude_q installer utilities."""
+"""Tests for claude_q installer utilities.
+
+Run with ``pytest tests/test_installer.py`` or filter with ``-k install``.
+
+Examples
+--------
+Run this test module directly::
+
+    pytest tests/test_installer.py
+
+"""
 
 from __future__ import annotations
 
@@ -17,7 +27,7 @@ from claude_q.installer.uninstall import uninstall as uninstall_cmd
 def test_find_settings_file_uses_xdg_config_home(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Find_settings_file should honor XDG_CONFIG_HOME when present."""
+    """Find_settings_file should honour XDG_CONFIG_HOME when present."""
     xdg_config = tmp_path / "xdg"
     settings = xdg_config / "claude" / "settings.json"
     settings.parent.mkdir(parents=True)

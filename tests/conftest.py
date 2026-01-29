@@ -1,4 +1,17 @@
-"""Pytest configuration and fixtures for claude-q tests."""
+"""Pytest configuration and fixtures for claude-q tests.
+
+Provides reusable fixtures for temporary queue storage and QueueStore
+instances. Fixtures create temporary directories and clean up via pytest's
+``tmp_path`` handling.
+
+Examples
+--------
+Use fixtures in a test::
+
+    def test_queue_store_uses_tmp_dir(queue_store: QueueStore) -> None:
+        assert queue_store.base_dir.exists()
+
+"""
 
 from __future__ import annotations
 

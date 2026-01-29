@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import datetime as dt
 import sys
+import typing as typ
 from pathlib import (
     Path,  # noqa: TC003  # TODO(leynos): https://github.com/leynos/claude-q/issues/123 - Path required for CLI annotations.
 )
@@ -36,9 +37,37 @@ app = cyclopts.App(
 )
 
 
+def parse_hooks(
+    settings: dict[str, typ.Any],
+) -> tuple[dict[str, typ.Any] | None, int]:
+    """Parse and validate hooks configuration from settings.
+
+    Parameters
+    ----------
+    settings : dict[str, typing.Any]
+        Parsed settings payload.
+
+    Returns
+    -------
+    tuple[dict[str, typing.Any] | None, int]
+        Hooks mapping on success and an exit code indicating whether execution
+        should continue.
+
+    """
+    match settings.get("hooks"):
+        case None:
+            sys.stdout.write("\nNo hooks configured - nothing to remove.\n")
+            return None, 0
+        case dict() as hooks:
+            return hooks, 0
+        case _:
+            sys.stderr.write("Error: settings.json hooks must be an object.\n")
+            return None, 1
+
+
 @app.default
 # TODO(leynos): https://github.com/leynos/claude-q/issues/123
-def uninstall(  # noqa: C901, PLR0911, PLR0912, PLR0915
+def uninstall(  # noqa: C901, PLR0911, PLR0912
     *,
     settings_path: Path | None = None,
     dry_run: bool = False,
@@ -76,16 +105,9 @@ def uninstall(  # noqa: C901, PLR0911, PLR0912, PLR0915
         sys.stderr.write(f"Error parsing settings.json: {e}\n")
         return 1
 
-    # Check if hooks exist
-    match settings.get("hooks"):
-        case None:
-            sys.stdout.write("\nNo hooks configured - nothing to remove.\n")
-            return 0
-        case dict() as hooks:
-            pass
-        case _:
-            sys.stderr.write("Error: settings.json hooks must be an object.\n")
-            return 1
+    hooks, status = parse_hooks(settings)
+    if hooks is None:
+        return status
     has_stop = "stop" in hooks
     has_prompt = "userPromptSubmit" in hooks
 
@@ -152,7 +174,11 @@ def main() -> int:
     """
     try:
         result = app()
-        return result if isinstance(result, int) else 0
+        match result:
+            case int():
+                return result
+            case _:
+                return 0
     except Exception as e:  # noqa: BLE001  # TODO(leynos): https://github.com/leynos/claude-q/issues/123
         sys.stderr.write(f"Error: {e}\n")
         return 1

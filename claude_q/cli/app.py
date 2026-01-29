@@ -20,7 +20,6 @@ Enqueue a message with the editor::
 from __future__ import annotations
 
 import sys
-import time
 from pathlib import (
     Path,  # noqa: TC003  # TODO(leynos): https://github.com/leynos/claude-q/issues/123 - Path required at runtime for CLI annotations.
 )
@@ -29,10 +28,12 @@ import cyclopts
 
 from claude_q import __version__
 from claude_q.cli.helpers import (
+    dequeue_with_poll,
     edit_text,
     read_stdin_text,
     split_topic_and_body,
     summarize,
+    validate_topic,
 )
 from claude_q.core import QueueStore, default_base_dir
 
@@ -47,14 +48,7 @@ app = cyclopts.App(
 
 @app.default
 def main_help() -> None:
-    """Show the help message when no command is specified.
-
-    Returns
-    -------
-    None
-        None.
-
-    """
+    """Show the help message when no command is specified."""
     app.parse_args(["--help"])
 
 
@@ -166,22 +160,13 @@ def get(
 
     """
     store = QueueStore(base_dir or default_base_dir())
-    topic_str = topic.strip()
-    if not topic_str:
-        msg = "topic is empty"
-        raise ValueError(msg)
-
-    while True:
-        msg = store.pop_first(topic_str)
-        if msg is not None:
-            sys.stdout.write(str(msg.get("content", "")))
-            sys.stdout.flush()
-            return 0
-
-        if not block:
-            return 1
-
-        time.sleep(poll)
+    topic_str = validate_topic(topic)
+    msg = dequeue_with_poll(store, topic_str, block=block, poll=poll)
+    if msg is None:
+        return 1
+    sys.stdout.write(str(msg.get("content", "")))
+    sys.stdout.flush()
+    return 0
 
 
 @app.command
@@ -209,10 +194,7 @@ def peek(
 
     """
     store = QueueStore(base_dir or default_base_dir())
-    topic_str = topic.strip()
-    if not topic_str:
-        msg = "topic is empty"
-        raise ValueError(msg)
+    topic_str = validate_topic(topic)
 
     if uuid:
         message = store.get_by_uuid(topic_str, uuid)
@@ -252,10 +234,7 @@ def list_cmd(
 
     """
     store = QueueStore(base_dir or default_base_dir())
-    topic_str = topic.strip()
-    if not topic_str:
-        msg = "topic is empty"
-        raise ValueError(msg)
+    topic_str = validate_topic(topic)
 
     msgs = store.list_messages(topic_str)
     for m in msgs:
@@ -293,10 +272,7 @@ def del_cmd(
 
     """
     store = QueueStore(base_dir or default_base_dir())
-    topic_str = topic.strip()
-    if not topic_str:
-        msg = "topic is empty"
-        raise ValueError(msg)
+    topic_str = validate_topic(topic)
 
     ok = store.delete_by_uuid(topic_str, uuid)
     return 0 if ok else 1
@@ -325,12 +301,15 @@ def edit(
     int
         Exit code (0 if replaced, 1 if not found).
 
+    Notes
+    -----
+    Edits are performed after ``store.get_by_uuid`` and before
+    ``store.replace_by_uuid``, so concurrent changes can cause edits to be
+    discarded if the message changes in the meantime.
+
     """
     store = QueueStore(base_dir or default_base_dir())
-    topic_str = topic.strip()
-    if not topic_str:
-        msg = "topic is empty"
-        raise ValueError(msg)
+    topic_str = validate_topic(topic)
 
     # Load current content (shared lock) then edit without holding any lock.
     message = store.get_by_uuid(topic_str, uuid)
@@ -341,7 +320,10 @@ def edit(
     edited = edit_text(original)
 
     ok = store.replace_by_uuid(topic_str, uuid, edited)
-    return 0 if ok else 1
+    if not ok:
+        sys.stderr.write("q edit: message changed before replace; edits discarded\n")
+        return 1
+    return 0
 
 
 @app.command
@@ -369,10 +351,7 @@ def replace(
 
     """
     store = QueueStore(base_dir or default_base_dir())
-    topic_str = topic.strip()
-    if not topic_str:
-        msg = "topic is empty"
-        raise ValueError(msg)
+    topic_str = validate_topic(topic)
 
     body = read_stdin_text()
     ok = store.replace_by_uuid(topic_str, uuid, body)

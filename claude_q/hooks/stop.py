@@ -22,10 +22,6 @@ from claude_q.hooks._common import format_dequeue_reason
 def main() -> int:
     """Run the stop hook.
 
-    Parameters
-    ----------
-    None
-
     Returns
     -------
     int

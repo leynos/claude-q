@@ -35,10 +35,6 @@ def main() -> int:
 
     Reads JSON payload from stdin, checks for =qput prefix, enqueues if found.
 
-    Parameters
-    ----------
-    None
-
     Returns
     -------
     int

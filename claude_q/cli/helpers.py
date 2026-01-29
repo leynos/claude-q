@@ -20,9 +20,14 @@ import re
 import shlex
 import sys
 import tempfile
+import time
+import typing as typ
 from pathlib import Path
 
 from plumbum import local
+
+if typ.TYPE_CHECKING:
+    from claude_q.core import QueueStore
 
 
 def editor_cmd() -> list[str]:
@@ -113,6 +118,32 @@ def split_topic_and_body(text: str) -> tuple[str, str]:
     return topic, rest
 
 
+def validate_topic(topic: str) -> str:
+    """Validate and normalise a topic string.
+
+    Parameters
+    ----------
+    topic : str
+        Raw topic string.
+
+    Returns
+    -------
+    str
+        Normalised topic string.
+
+    Raises
+    ------
+    ValueError
+        If the topic is empty after trimming.
+
+    """
+    topic_str = topic.strip()
+    if not topic_str:
+        msg = "topic is empty"
+        raise ValueError(msg)
+    return topic_str
+
+
 def read_stdin_text() -> str:
     """Read all text from stdin without modification.
 
@@ -123,6 +154,41 @@ def read_stdin_text() -> str:
 
     """
     return sys.stdin.read()
+
+
+def dequeue_with_poll(
+    store: QueueStore,
+    topic: str,
+    *,
+    block: bool,
+    poll: float,
+) -> dict[str, typ.Any] | None:
+    """Dequeue a message, optionally polling until one exists.
+
+    Parameters
+    ----------
+    store : QueueStore
+        Queue storage instance.
+    topic : str
+        Queue topic name.
+    block : bool
+        Whether to poll until a message exists.
+    poll : float
+        Poll interval in seconds when blocking.
+
+    Returns
+    -------
+    dict[str, typing.Any] | None
+        Dequeued message, or None when no message is available.
+
+    """
+    while True:
+        msg = store.pop_first(topic)
+        if msg is not None:
+            return msg
+        if not block:
+            return None
+        time.sleep(poll)
 
 
 def summarize(content: str, width: int = 80) -> str:

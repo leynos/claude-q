@@ -19,7 +19,6 @@ Dequeue a message (blocking until available)::
 from __future__ import annotations
 
 import sys
-import time
 from pathlib import (
     Path,  # noqa: TC003  # TODO(leynos): https://github.com/leynos/claude-q/issues/123 - Path required at runtime for CLI annotations.
 )
@@ -27,7 +26,7 @@ from pathlib import (
 import cyclopts
 
 from claude_q import __version__
-from claude_q.cli.helpers import edit_text, read_stdin_text
+from claude_q.cli.helpers import dequeue_with_poll, edit_text, read_stdin_text
 from claude_q.core import QueueStore, default_base_dir
 from claude_q.git_integration import GitError, derive_topic
 
@@ -42,14 +41,7 @@ git_app = cyclopts.App(
 
 @git_app.default
 def git_main_help() -> None:
-    """Show the help message when no command is specified.
-
-    Returns
-    -------
-    None
-        None.
-
-    """
+    """Show the help message when no command is specified."""
     git_app.parse_args(["--help"])
 
 
@@ -140,18 +132,12 @@ def git_get(
         return 1
 
     store = QueueStore(base_dir or default_base_dir())
-
-    while True:
-        msg = store.pop_first(topic)
-        if msg is not None:
-            sys.stdout.write(str(msg.get("content", "")))
-            sys.stdout.flush()
-            return 0
-
-        if not block:
-            return 1
-
-        time.sleep(poll)
+    msg = dequeue_with_poll(store, topic, block=block, poll=poll)
+    if msg is None:
+        return 1
+    sys.stdout.write(str(msg.get("content", "")))
+    sys.stdout.flush()
+    return 0
 
 
 def git_q_main() -> int:

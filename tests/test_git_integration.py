@@ -159,14 +159,14 @@ def test_derive_topic_not_in_worktree(mock_worktree: mock.MagicMock) -> None:
 @mock.patch("claude_q.git_integration.get_current_branch")
 @mock.patch("claude_q.git_integration.get_first_remote")
 def test_derive_topic_no_remote_or_branch(
-    mock_remote: mock.MagicMock,
-    mock_branch: mock.MagicMock,
-    mock_worktree: mock.MagicMock,
+    mock_get_first_remote: mock.MagicMock,
+    mock_get_current_branch: mock.MagicMock,
+    mock_is_in_git_worktree: mock.MagicMock,
 ) -> None:
     """Test deriving topic when neither remote nor branch exist."""
-    mock_worktree.return_value = True
-    mock_remote.return_value = ""
-    mock_branch.return_value = ""
+    mock_is_in_git_worktree.return_value = True
+    mock_get_first_remote.return_value = ""
+    mock_get_current_branch.return_value = ""
 
     with pytest.raises(GitError, match="cannot derive topic"):
         derive_topic()

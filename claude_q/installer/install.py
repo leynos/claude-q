@@ -145,15 +145,6 @@ def install(  # noqa: C901, PLR0911, PLR0912, PLR0915
     for warning in warnings:
         sys.stdout.write(f"{warning}\n")
 
-    # Create timestamped backup
-    timestamp = dt.datetime.now(tz=dt.UTC).strftime("%Y%m%d_%H%M%S")
-    backup_path = settings_file.with_suffix(f".backup.{timestamp}.json")
-    backup_path.write_text(
-        settings_file.read_text(encoding="utf-8"),
-        encoding="utf-8",
-    )
-    sys.stdout.write(f"Created backup: {backup_path}\n")
-
     # Parse with json5kit for JSON5 support
     try:
         with settings_file.open(encoding="utf-8") as f:
@@ -195,6 +186,15 @@ def install(  # noqa: C901, PLR0911, PLR0912, PLR0915
         sys.stdout.write("  - stop: q-stop-hook\n")
         sys.stdout.write("  - userPromptSubmit: q-prompt-hook\n")
         return 0
+
+    # Create timestamped backup
+    timestamp = dt.datetime.now(tz=dt.UTC).strftime("%Y%m%d_%H%M%S")
+    backup_path = settings_file.with_suffix(f".backup.{timestamp}.json")
+    backup_path.write_text(
+        settings_file.read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    sys.stdout.write(f"Created backup: {backup_path}\n")
 
     # Add or update hooks
     hooks["stop"] = {"command": "q-stop-hook", "enabled": True}
