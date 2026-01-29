@@ -78,10 +78,7 @@ def put(
     store = QueueStore(base_dir or default_base_dir())
 
     if topic:
-        topic_str = topic.strip()
-        if not topic_str:
-            msg = "topic is empty"
-            raise ValueError(msg)
+        topic_str = validate_topic(topic)
         body = edit_text("")
     else:
         text = edit_text("")
@@ -119,10 +116,7 @@ def readto(
     text = read_stdin_text()
 
     if topic:
-        topic_str = topic.strip()
-        if not topic_str:
-            msg = "topic is empty"
-            raise ValueError(msg)
+        topic_str = validate_topic(topic)
         body = text
     else:
         topic_str, body = split_topic_and_body(text)
@@ -369,7 +363,11 @@ def main() -> int:
     """
     try:
         result = app()
-        return result if isinstance(result, int) else 0
+        match result:
+            case int():
+                return result
+            case _:
+                return 0
     except ValueError as e:
         sys.stderr.write(f"q: {e}\n")
         return 2

@@ -40,10 +40,11 @@ def test_get_first_remote_outputs(
     mock_git: mock.MagicMock, result: str | Exception, expected: str
 ) -> None:
     """Test get_first_remote output cases."""
-    if isinstance(result, Exception):
-        mock_git.__getitem__.return_value.side_effect = result
-    else:
-        mock_git.__getitem__.return_value.return_value = result
+    match result:
+        case Exception() as err:
+            mock_git.__getitem__.return_value.side_effect = err
+        case _:
+            mock_git.__getitem__.return_value.return_value = result
 
     remote = get_first_remote()
     assert remote == expected, "should return expected remote output"
@@ -63,10 +64,11 @@ def test_get_current_branch_outputs(
     mock_git: mock.MagicMock, result: str | Exception, expected: str
 ) -> None:
     """Test get_current_branch output cases."""
-    if isinstance(result, Exception):
-        mock_git.__getitem__.return_value.side_effect = result
-    else:
-        mock_git.__getitem__.return_value.return_value = result
+    match result:
+        case Exception() as err:
+            mock_git.__getitem__.return_value.side_effect = err
+        case _:
+            mock_git.__getitem__.return_value.return_value = result
 
     branch = get_current_branch()
     assert branch == expected, "should return expected branch output"
@@ -85,10 +87,11 @@ def test_is_in_git_worktree_outputs(
     mock_git: mock.MagicMock, result: str | Exception, expected_state: object
 ) -> None:
     """Test is_in_git_worktree output cases."""
-    if isinstance(result, Exception):
-        mock_git.__getitem__.return_value.side_effect = result
-    else:
-        mock_git.__getitem__.return_value.return_value = result
+    match result:
+        case Exception() as err:
+            mock_git.__getitem__.return_value.side_effect = err
+        case _:
+            mock_git.__getitem__.return_value.return_value = result
 
     assert is_in_git_worktree() is expected_state, (
         "should return expected worktree state"
@@ -147,9 +150,11 @@ def test_derive_topic_branch_only(
 
 
 @mock.patch("claude_q.git_integration.is_in_git_worktree")
-def test_derive_topic_not_in_worktree(mock_worktree: mock.MagicMock) -> None:
+def test_derive_topic_not_in_worktree(
+    mock_is_in_git_worktree: mock.MagicMock,
+) -> None:
     """Test deriving topic when not in a git worktree."""
-    mock_worktree.return_value = False
+    mock_is_in_git_worktree.return_value = False
 
     with pytest.raises(GitError, match="not in a git worktree"):
         derive_topic()

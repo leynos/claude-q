@@ -151,7 +151,11 @@ def git_q_main() -> int:
     """
     try:
         result = git_app()
-        return result if isinstance(result, int) else 0
+        match result:
+            case int():
+                return result
+            case _:
+                return 0
     except ValueError as e:
         sys.stderr.write(f"git q: {e}\n")
         return 2

@@ -226,7 +226,11 @@ def main() -> int:
     """
     try:
         result = app()
-        return result if isinstance(result, int) else 0
+        match result:
+            case int():
+                return result
+            case _:
+                return 0
     except Exception as e:  # noqa: BLE001  # TODO(leynos): https://github.com/leynos/claude-q/issues/123
         sys.stderr.write(f"Error: {e}\n")
         return 1
