@@ -84,7 +84,9 @@ def test_get_current_branch_outputs(
     ],
 )
 def test_is_in_git_worktree_outputs(
-    mock_git: mock.MagicMock, result: str | Exception, expected_state: object
+    mock_git: mock.MagicMock,
+    result: str | Exception,
+    expected_state: bool,  # noqa: FBT001
 ) -> None:
     """Test is_in_git_worktree output cases."""
     match result:

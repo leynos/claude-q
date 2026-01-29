@@ -23,6 +23,7 @@ import datetime as dt
 import os
 import shutil
 import sys
+import typing as typ
 from pathlib import Path
 
 import cyclopts
@@ -99,9 +100,39 @@ def verify_hook_commands() -> list[str]:
     ]
 
 
+def ensure_hooks(settings: dict[str, typ.Any]) -> dict[str, typ.Any]:
+    """Normalise the hooks mapping in settings.
+
+    Parameters
+    ----------
+    settings : dict[str, typing.Any]
+        Parsed settings payload.
+
+    Returns
+    -------
+    dict[str, typing.Any]
+        Normalised hooks mapping.
+
+    """
+    match settings.get("hooks"):
+        case None:
+            hooks = {}
+            settings["hooks"] = hooks
+            return hooks
+        case dict() as hooks:
+            return hooks
+        case _:
+            sys.stderr.write(
+                "Warning: settings.json hooks must be an object; resetting.\n"
+            )
+            hooks = {}
+            settings["hooks"] = hooks
+            return hooks
+
+
 @app.default
 # TODO(leynos): https://github.com/leynos/claude-q/issues/123
-def install(  # noqa: C901, PLR0911, PLR0912, PLR0915
+def install(  # noqa: C901, PLR0911
     *,
     settings_path: Path | None = None,
     dry_run: bool = False,
@@ -152,20 +183,14 @@ def install(  # noqa: C901, PLR0911, PLR0912, PLR0915
     except Exception as e:  # noqa: BLE001  # TODO(leynos): https://github.com/leynos/claude-q/issues/123
         sys.stderr.write(f"Error parsing settings.json: {e}\n")
         return 1
+    if not isinstance(settings, dict):
+        sys.stderr.write(
+            "Error: settings.json root must be an object, found: "
+            f"{type(settings).__name__}\n"
+        )
+        return 1
 
-    # Ensure hooks object exists
-    match settings.get("hooks"):
-        case None:
-            hooks = {}
-            settings["hooks"] = hooks
-        case dict() as hooks:
-            pass
-        case _:
-            sys.stderr.write(
-                "Warning: settings.json hooks must be an object; resetting.\n"
-            )
-            hooks = {}
-            settings["hooks"] = hooks
+    hooks = ensure_hooks(settings)
 
     # Check for existing hooks
     has_stop = "stop" in hooks
