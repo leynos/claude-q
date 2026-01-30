@@ -24,7 +24,9 @@ import time
 import typing as typ
 from pathlib import Path
 
-from plumbum import local
+from cuprum import Program
+
+from claude_q.command_runner import run_sync
 
 if typ.TYPE_CHECKING:
     from claude_q.core import QueueStore
@@ -78,10 +80,10 @@ def edit_text(initial: str = "") -> str:
 
     try:
         cmd = [*editor_cmd(), str(path)]
-        editor_bin = local[cmd[0]]
-        result = editor_bin[cmd[1:]].run(retcode=None)
-        if result[2] != 0:
-            msg = f"editor exited with status {result[2]}: {' '.join(cmd)}"
+        program = Program(cmd[0])
+        result = run_sync(program, cmd[1:])
+        if not result.ok:
+            msg = f"editor exited with status {result.exit_code}: {' '.join(cmd)}"
             raise RuntimeError(msg)
         return path.read_text(encoding="utf-8")
     finally:

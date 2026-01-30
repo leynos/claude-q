@@ -4,7 +4,7 @@ This ExecPlan is a living document. The sections `Constraints`, `Tolerances`,
 `Risks`, `Progress`, `Surprises & Discoveries`, `Decision Log`, and
 `Outcomes & Retrospective` must be kept up to date as work proceeds.
 
-Status: DRAFT
+Status: COMPLETE
 
 PLANS.md is not present in this repository.
 
@@ -64,10 +64,11 @@ hook flows behave the same as before (including exit codes and stdout/stderr).
 ## Progress
 
 - [x] (2026-01-30 00:00Z) Drafted plan and identified current usage sites.
-- [ ] Update tests to reflect cuprum-backed execution.
-- [ ] Replace plumbum/subprocess usage in runtime code.
-- [ ] Update documentation and dependency metadata.
-- [ ] Run formatting, linting, typecheck, and tests.
+- [x] (2026-01-30 00:12Z) Began implementation after approval.
+- [x] (2026-01-30 00:35Z) Updated tests for cuprum-backed execution.
+- [x] (2026-01-30 01:05Z) Replaced plumbum/subprocess usage in runtime code.
+- [x] (2026-01-30 01:22Z) Updated documentation and dependency metadata.
+- [x] (2026-01-30 01:45Z) Ran formatting, linting, typecheck, and tests.
 
 ## Surprises & Discoveries
 
@@ -79,22 +80,31 @@ hook flows behave the same as before (including exit codes and stdout/stderr).
   construction and make testing deterministic. Rationale: reduces duplication
   across git helpers and editor invocation while keeping call sites simple to
   update. Date/Author: 2026-01-30 (assistant)
+- Decision: restrict hook helper commands to git and reject stdin input.
+  Rationale: cuprum does not expose stdin text injection, and existing call
+  sites only run git commands without stdin, so explicit rejection avoids
+  silently ignoring input. Date/Author: 2026-01-30 (assistant)
 
 ## Outcomes & Retrospective
 
-- Pending.
+- Cuprum now backs all command execution for git helpers and editor launches,
+  with a shared `command_runner` helper and updated tests/documentation.
+- The migration was straightforward; the only adjustment was guarding against
+  `None` stdout in hook helpers to satisfy type checking.
 
 ## Context and Orientation
 
-Current command execution is split across two libraries:
+Current command execution is centralized through cuprum:
 
-- `claude_q/git_integration.py` uses `plumbum.cmd.git` for git metadata.
-- `claude_q/hooks/_git_subprocess.py` uses `subprocess.run` to run git commands
-  for hook contexts with explicit `cwd`.
-- `claude_q/cli/helpers.py` uses `plumbum.local` to launch the user's editor.
-- `tests/test_git_integration.py` patches the plumbum `git` object directly.
+- `claude_q/command_runner.py` defines the cuprum catalogue and `run_sync`
+  helper used by runtime code.
+- `claude_q/git_integration.py` uses `run_sync(GIT, ...)` for git metadata.
+- `claude_q/hooks/_git_subprocess.py` uses the same helper with explicit `cwd`.
+- `claude_q/cli/helpers.py` launches the editor via cuprum.
+- `tests/test_git_integration.py` patches the cuprum runner, and
+  `tests/test_command_runner.py` covers the helper wiring.
 - Dependencies are declared in `pyproject.toml` and locked in `uv.lock`.
-- Docs referencing plumbum include `README.md` and
+- Documentation references are updated in `README.md` and
   `docs/scripting-standards.md`.
 
 Cuprum usage guidance and APIs are documented in `docs/cuprum-users-guide.md`.
@@ -231,4 +241,5 @@ Dependency updates:
 
 ## Revision note
 
-Initial draft created to guide cuprum migration and testing strategy.
+Marked the plan complete after running all quality gates and documenting the
+final outcomes.

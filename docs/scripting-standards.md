@@ -35,8 +35,9 @@ as a default.
   expectations travel with the file. Prefer the shebang
   `#!/usr/bin/env -S uv run python` followed by the metadata block shown in the
   example below.
-- External processes are invoked via [`plumbum`](https://plumbum.readthedocs.io)
-  to provide structured command execution rather than ad‑hoc shell strings.
+- External processes are invoked via [cuprum](docs/cuprum-users-guide.md) to
+  provide structured, allowlist-aware command execution rather than ad‑hoc
+  shell strings.
 - File‑system interactions use `pathlib.Path`. Higher‑level operations (for
   example, copying or removing trees) go through the `shutil` standard library
   module.
@@ -47,21 +48,34 @@ as a default.
 #!/usr/bin/env -S uv run python
 # /// script
 # requires-python = ">=3.13"
-# dependencies = ["plumbum", "cmd-mox"]
+# dependencies = ["cuprum==0.1.0", "cmd-mox"]
 # ///
 
 from __future__ import annotations
 
 from pathlib import Path
-from plumbum import local
-from plumbum.cmd import tofu
+
+from cuprum import ExecutionContext, Program, ProgramCatalogue, ProjectSettings, sh
+
+TOFU = Program("tofu")
+CATALOGUE = ProgramCatalogue(
+    projects=(
+        ProjectSettings(
+            name="scripts",
+            programs=(TOFU,),
+            documentation_locations=(),
+            noise_rules=(),
+        ),
+    ),
+)
 
 
 def main() -> None:
     project_root = Path(__file__).resolve().parents[1]
     cluster_dir = project_root / "infra" / "clusters" / "dev"
-    with local.cwd(cluster_dir):
-        tofu["plan"]()
+    cmd = sh.make(TOFU, catalogue=CATALOGUE)("plan")
+    ctx = ExecutionContext(cwd=cluster_dir)
+    cmd.run_sync(context=ctx)
 
 
 if __name__ == "__main__":
@@ -77,7 +91,7 @@ Employ Cyclopts when a script requires parameters, particularly under CI with
 #!/usr/bin/env -S uv run python
 # /// script
 # requires-python = ">=3.13"
-# dependencies = ["cyclopts>=2.9", "plumbum", "cmd-mox"]
+# dependencies = ["cyclopts>=2.9", "cuprum==0.1.0", "cmd-mox"]
 # ///
 
 from __future__ import annotations
@@ -87,8 +101,19 @@ from typing import Optional, Annotated
 
 import cyclopts
 from cyclopts import App, Parameter
-from plumbum import local
-from plumbum.cmd import tofu
+from cuprum import ExecutionContext, Program, ProgramCatalogue, ProjectSettings, sh
+
+TOFU = Program("tofu")
+CATALOGUE = ProgramCatalogue(
+    projects=(
+        ProjectSettings(
+            name="scripts",
+            programs=(TOFU,),
+            documentation_locations=(),
+            noise_rules=(),
+        ),
+    ),
+)
 
 # Map INPUT_<PARAM> → function parameter without additional glue
 app = App(config=cyclopts.config.Env("INPUT_", command=False))
@@ -132,8 +157,8 @@ def main(
         return
 
     build_dir.mkdir(parents=True, exist_ok=True)
-    with local.cwd(build_dir):
-        tofu["plan"]()  # replace with real build tooling
+    ctx = ExecutionContext(cwd=build_dir)
+    sh.make(TOFU, catalogue=CATALOGUE)("plan").run_sync(context=ctx)
 
 
 if __name__ == "__main__":
@@ -162,70 +187,136 @@ Guidance:
   config_out: Annotated[Optional[Path], Parameter(env_var="INPUT_CONFIG_PATH")] = None
   ```
 
-## plumbum: command calling and pipelines
+## cuprum: command calling and pipelines
 
 ### Basics: command calls, capturing output, handling failures
 
 ```python
-from __future__ annotations
-from plumbum import local
-from plumbum.cmd import git, grep
+from cuprum import Program, ProgramCatalogue, ProjectSettings, sh
 
-# Capture stdout (raises ProcessExecutionError on non‑zero exit)
-last_commit = git["--no-pager", "log", "-1", "--pretty=%H"]().strip()
+GIT = Program("git")
+GREP = Program("grep")
+CATALOGUE = ProgramCatalogue(
+    projects=(
+        ProjectSettings(
+            name="scripts",
+            programs=(GIT, GREP),
+            documentation_locations=(),
+            noise_rules=(),
+        ),
+    ),
+)
 
-# Obtain (rc, out, err) without raising
-rc, out, err = git["status"].run(retcode=None)
-if rc != 0:
-    # handle gracefully; err is available for logging
+git = sh.make(GIT, catalogue=CATALOGUE)
+grep = sh.make(GREP, catalogue=CATALOGUE)
+
+result = git("--no-pager", "log", "-1", "--pretty=%H").run_sync()
+last_commit = (result.stdout or "").strip()
+
+result = git("status").run_sync()
+if not result.ok:
+    # handle gracefully; result.stderr is available for logging
     ...
 
-# Pipelines via the | operator
-shortlog = (git["--no-pager", "log", "--oneline"] | grep["fix"])()
+shortlog = (git("--no-pager", "log", "--oneline") | grep("fix")).run_sync()
 ```
 
 ### Working directory and environment management
 
 ```python
 from pathlib import Path
-from plumbum import local
 
+from cuprum import ExecutionContext, Program, ProgramCatalogue, ProjectSettings, sh
+
+GIT = Program("git")
+CATALOGUE = ProgramCatalogue(
+    projects=(
+        ProjectSettings(
+            name="scripts",
+            programs=(GIT,),
+            documentation_locations=(),
+            noise_rules=(),
+        ),
+    ),
+)
+
+git = sh.make(GIT, catalogue=CATALOGUE)
 repo_dir = Path(__file__).resolve().parents[1]
 
-with local.cwd(repo_dir):
-    tags = local["git"]["tag", "--list"]()
+ctx = ExecutionContext(cwd=repo_dir)
+tags = git("tag", "--list").run_sync(context=ctx).stdout
 
-# Temporary env overrides
-with local.env(GIT_AUTHOR_NAME="CI", GIT_AUTHOR_EMAIL="ci@example.org"):
-    local["git"]["config", "user.name", "CI"]()
+ctx = ExecutionContext(
+    cwd=repo_dir,
+    env={"GIT_AUTHOR_NAME": "CI", "GIT_AUTHOR_EMAIL": "ci@example.org"},
+)
+git("config", "user.name", "CI").run_sync(context=ctx)
 ```
 
-### Foreground execution and background jobs
+### Streaming output and async execution
 
 ```python
-from plumbum import FG, BG
-from plumbum.cmd import make
+import asyncio
 
-# Stream output to terminal
-make["-j4"] & FG
+from cuprum import Program, ProgramCatalogue, ProjectSettings, sh
 
-# Background process
-proc = local["sleep"]["5"] & BG
-proc.wait()
+MAKE = Program("make")
+CATALOGUE = ProgramCatalogue(
+    projects=(
+        ProjectSettings(
+            name="scripts",
+            programs=(MAKE,),
+            documentation_locations=(),
+            noise_rules=(),
+        ),
+    ),
+)
+
+cmd = sh.make(MAKE, catalogue=CATALOGUE)("-j4")
+
+# Stream output to the terminal while running
+cmd.run_sync(echo=True, capture=False)
+
+# Async execution for concurrent workflows
+async def run_all() -> None:
+    await asyncio.gather(cmd.run(), cmd.run())
 ```
 
 ### Piping stdin and redirecting
 
 ```python
-from plumbum import local
-from plumbum.cmd import sed, git, grep, wc
+from cuprum import Program, ProgramCatalogue, ProjectSettings, sh
 
-# Provide stdin explicitly
-_, out, _ = sed["-n", "s/^v//p"].run(stdin="v1.2.3\nv2.0.0\n")
+ECHO = Program("echo")
+SED = Program("sed")
+GIT = Program("git")
+GREP = Program("grep")
+WC = Program("wc")
+CATALOGUE = ProgramCatalogue(
+    projects=(
+        ProjectSettings(
+            name="scripts",
+            programs=(ECHO, SED, GIT, GREP, WC),
+            documentation_locations=(),
+            noise_rules=(),
+        ),
+    ),
+)
+
+echo = sh.make(ECHO, catalogue=CATALOGUE)
+sed = sh.make(SED, catalogue=CATALOGUE)
+git = sh.make(GIT, catalogue=CATALOGUE)
+grep = sh.make(GREP, catalogue=CATALOGUE)
+wc = sh.make(WC, catalogue=CATALOGUE)
+
+out = (echo("-n", "v1.2.3\nv2.0.0\n") | sed("-n", "s/^v//p")).run_sync().stdout
 assert out.splitlines() == ["1.2.3", "2.0.0"]
 
-# Multi‑stage pipelines
-count = (git["--no-pager", "log", "--oneline"] | grep["chore"] | wc["-l"])().strip()
+count = (
+    git("--no-pager", "log", "--oneline")
+    | grep("chore")
+    | wc("-l")
+).run_sync().stdout.strip()
 ```
 
 ## pathlib: robust path manipulation
@@ -282,13 +373,13 @@ except FileNotFoundError:
     pass
 ```
 
-## Cyclopts + plumbum + pathlib together (reference script)
+## Cyclopts + cuprum + pathlib together (reference script)
 
 ```python
 #!/usr/bin/env -S uv run python
 # /// script
 # requires-python = ">=3.13"
-# dependencies = ["cyclopts>=2.9", "plumbum", "cmd-mox"]
+# dependencies = ["cyclopts>=2.9", "cuprum==0.1.0", "cmd-mox"]
 # ///
 
 from __future__ import annotations
@@ -297,8 +388,19 @@ from typing import Optional, Annotated
 
 import cyclopts
 from cyclopts import App, Parameter
-from plumbum import local, FG
-from plumbum.cmd import git
+from cuprum import ExecutionContext, Program, ProgramCatalogue, ProjectSettings, sh
+
+GIT = Program("git")
+CATALOGUE = ProgramCatalogue(
+    projects=(
+        ProjectSettings(
+            name="scripts",
+            programs=(GIT,),
+            documentation_locations=(),
+            noise_rules=(),
+        ),
+    ),
+)
 
 app = App(config=cyclopts.config.Env("INPUT_", command=False))
 
@@ -316,8 +418,12 @@ def main(
     dist.mkdir(parents=True, exist_ok=True)
 
     if not dry_run:
-        with local.cwd(project_root):
-            (git["tag", f"v{version}"] & FG)
+        ctx = ExecutionContext(cwd=project_root)
+        cmd = sh.make(GIT, catalogue=CATALOGUE)("tag", f"v{version}")
+        result = cmd.run_sync(context=ctx, echo=True)
+        if not result.ok:
+            msg = f"git tag failed: {result.exit_code}"
+            raise RuntimeError(msg)
 
     print({
         "bin_name": bin_name,
@@ -384,7 +490,21 @@ pytest_plugins = ("cmd_mox.pytest_plugin",)
 ```
 
 ```python
-from plumbum import local
+from cuprum import Program, ProgramCatalogue, ProjectSettings, sh
+
+GIT = Program("git")
+CATALOGUE = ProgramCatalogue(
+    projects=(
+        ProjectSettings(
+            name="tests",
+            programs=(GIT,),
+            documentation_locations=(),
+            noise_rules=(),
+        ),
+    ),
+)
+
+git = sh.make(GIT, catalogue=CATALOGUE)
 
 
 def test_git_tag_happy_path(cmd_mox, monkeypatch, tmp_path):
@@ -395,7 +515,7 @@ def test_git_tag_happy_path(cmd_mox, monkeypatch, tmp_path):
 
     # Run the code under test while shims are active
     cmd_mox.replay()
-    local["git"]["tag", "v1.2.3"]()
+    git("tag", "v1.2.3").run_sync()
     cmd_mox.verify()
 
 
@@ -405,19 +525,30 @@ def test_git_tag_failure_surface_error(cmd_mox, monkeypatch, tmp_path):
     cmd_mox.mock("git").with_args("tag", "v1.2.3").returns(exit_code=1, stderr="denied")
 
     cmd_mox.replay()
-    try:
-        local["git"]["tag", "v1.2.3"]()  # raises due to non‑zero rc
-        assert False, "expected ProcessExecutionError"
-    except Exception as exc:
-        assert "Command exited with code" in str(exc)
-    finally:
-        cmd_mox.verify()
+    result = git("tag", "v1.2.3").run_sync()
+    assert not result.ok
+    assert "denied" in (result.stderr or "")
+    cmd_mox.verify()
 ```
 
 ### Spies and passthrough capture (turn real calls into fixtures)
 
 ```python
-from plumbum import local
+from cuprum import Program, ProgramCatalogue, ProjectSettings, sh
+
+ECHO = Program("echo")
+CATALOGUE = ProgramCatalogue(
+    projects=(
+        ProjectSettings(
+            name="tests",
+            programs=(ECHO,),
+            documentation_locations=(),
+            noise_rules=(),
+        ),
+    ),
+)
+
+echo = sh.make(ECHO, catalogue=CATALOGUE)
 
 
 def test_spy_and_record(cmd_mox, monkeypatch, tmp_path):
@@ -427,7 +558,7 @@ def test_spy_and_record(cmd_mox, monkeypatch, tmp_path):
     spy = cmd_mox.spy("echo").passthrough()
 
     cmd_mox.replay()
-    (local["echo"]["hello world"])()
+    echo("hello world").run_sync()
     cmd_mox.verify()
 
     # Inspect what happened
@@ -486,8 +617,8 @@ def test_spy_and_record(cmd_mox, monkeypatch, tmp_path):
 
 - Newline‑separated lists are preferred for CI inputs to avoid shell quoting
   issues across platforms.
-- `Command.run(retcode=None)` permits inspection of non‑zero exits without
-  raising.
+- Cuprum returns `CommandResult` for all executions; non‑zero exits do not
+  raise, so check `result.ok` and `result.exit_code` explicitly.
 - Production code should present friendly error messages; tests may assert raw
   behaviours (non‑zero exits, stderr contents) via `cmd-mox`.
 - On Windows, newline‑separated lists are recommended for `list[Path]` to
