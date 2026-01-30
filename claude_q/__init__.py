@@ -1,13 +1,12 @@
-"""claude-q package."""
+"""claude-q: Topic-based FIFO queues for Claude Code.
+
+Provides file-backed, lock-protected queue operations with git integration
+for seamless Claude Code session continuity.
+"""
 
 from __future__ import annotations
 
-PACKAGE_NAME = "claude_q"
+from claude_q.core import QueueStore, default_base_dir
 
-try:  # pragma: no cover - Rust optional
-    rust = __import__(f"_{PACKAGE_NAME}_rs")
-    hello = rust.hello  # type: ignore[attr-defined]
-except ModuleNotFoundError:  # pragma: no cover - Python fallback
-    from .pure import hello
-
-__all__ = ["hello"]
+__version__ = "0.1.0"
+__all__ = ["QueueStore", "__version__", "default_base_dir"]
