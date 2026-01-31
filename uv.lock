@@ -39,7 +39,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "cuprum", specifier = "==0.1.0" },
+    { name = "cuprum", specifier = ">=0.1.0,<0.2.0" },
     { name = "cyclopts", specifier = ">=2.9" },
     { name = "json5kit", marker = "extra == 'installer'" },
 ]

@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import typing as typ
 
-from claude_q.command_runner import GIT, run_sync
+from claude_q.command_runner import GIT, RunOptions, run_sync
 from claude_q.git_integration import GitError, combine_topic
 
 if typ.TYPE_CHECKING:
@@ -63,7 +63,7 @@ def run_command(
     if cmd[0] != "git":
         msg = "only git commands are supported by this helper"
         raise ValueError(msg)
-    return run_sync(GIT, cmd[1:], cwd=cwd)
+    return run_sync(GIT, cmd[1:], options=RunOptions(cwd=cwd))
 
 
 def get_first_remote(cwd: str) -> str:

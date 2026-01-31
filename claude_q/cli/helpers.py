@@ -26,7 +26,7 @@ from pathlib import Path
 
 from cuprum import Program
 
-from claude_q.command_runner import run_sync
+from claude_q.command_runner import RunOptions, run_sync
 
 if typ.TYPE_CHECKING:
     from claude_q.core import QueueStore
@@ -81,7 +81,8 @@ def edit_text(initial: str = "") -> str:
     try:
         cmd = [*editor_cmd(), str(path)]
         program = Program(cmd[0])
-        result = run_sync(program, cmd[1:])
+        options = RunOptions(capture=False, echo=True)
+        result = run_sync(program, cmd[1:], options=options)
         if not result.ok:
             msg = f"editor exited with status {result.exit_code}: {' '.join(cmd)}"
             raise RuntimeError(msg)

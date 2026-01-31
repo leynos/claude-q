@@ -48,7 +48,7 @@ as a default.
 #!/usr/bin/env -S uv run python
 # /// script
 # requires-python = ">=3.13"
-# dependencies = ["cuprum==0.1.0", "cmd-mox"]
+# dependencies = ["cuprum>=0.1.0, <0.2.0", "cmd-mox"]
 # ///
 
 from __future__ import annotations
@@ -91,7 +91,7 @@ Employ Cyclopts when a script requires parameters, particularly under CI with
 #!/usr/bin/env -S uv run python
 # /// script
 # requires-python = ">=3.13"
-# dependencies = ["cyclopts>=2.9", "cuprum==0.1.0", "cmd-mox"]
+# dependencies = ["cyclopts>=2.9", "cuprum>=0.1.0, <0.2.0", "cmd-mox"]
 # ///
 
 from __future__ import annotations
@@ -187,7 +187,7 @@ Guidance:
   config_out: Annotated[Optional[Path], Parameter(env_var="INPUT_CONFIG_PATH")] = None
   ```
 
-## cuprum: command calling and pipelines
+## Cuprum: command calling and pipelines
 
 ### Basics: command calls, capturing output, handling failures
 
@@ -379,7 +379,7 @@ except FileNotFoundError:
 #!/usr/bin/env -S uv run python
 # /// script
 # requires-python = ">=3.13"
-# dependencies = ["cyclopts>=2.9", "cuprum==0.1.0", "cmd-mox"]
+# dependencies = ["cyclopts>=2.9", "cuprum>=0.1.0, <0.2.0", "cmd-mox"]
 # ///
 
 from __future__ import annotations

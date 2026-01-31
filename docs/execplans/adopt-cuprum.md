@@ -129,9 +129,9 @@ that builds `SafeCmd` instances and runs them synchronously with optional
 wrapper built on it). Keep return values and error semantics identical.
 
 Stage D: dependency and documentation updates. Replace `plumbum` with
-`cuprum==0.1.0` in `pyproject.toml`, regenerate `uv.lock`, and update docs to
-reference cuprum instead of plumbum (including README and scripting standards).
-Update any docstrings mentioning subprocess/plumbum.
+`cuprum>=0.1.0, <0.2.0` in `pyproject.toml`, regenerate `uv.lock`, and update
+docs to reference cuprum instead of plumbum (including README and scripting
+standards). Update any docstrings mentioning subprocess/plumbum.
 
 Each stage ends with validation; do not proceed if the stage's validation fails.
 
@@ -163,19 +163,20 @@ Each stage ends with validation; do not proceed if the stage's validation fails.
 
 4. Update dependencies and docs (stage D):
 
-    - Edit `pyproject.toml` to replace plumbum with `cuprum==0.1.0`.
+    - Edit `pyproject.toml` to replace plumbum with
+      `cuprum>=0.1.0, <0.2.0`.
     - Regenerate `uv.lock` using the project's lock workflow.
     - Update `README.md`, `docs/scripting-standards.md`, and any docstrings to
       reference cuprum.
 
 5. Validate quality gates (use tee for logs):
 
-    make fmt | tee /tmp/fmt-$(get-project)-$(git branch --show).out
-    make markdownlint | tee /tmp/markdownlint-$(get-project)-$(git branch --show).out
-    make nixie | tee /tmp/nixie-$(get-project)-$(git branch --show).out
-    make lint | tee /tmp/lint-$(get-project)-$(git branch --show).out
-    make typecheck | tee /tmp/typecheck-$(get-project)-$(git branch --show).out
-    make test | tee /tmp/test-$(get-project)-$(git branch --show).out
+    make fmt | tee /tmp/fmt-claude-q-$(git branch --show).out
+    make markdownlint | tee /tmp/markdownlint-claude-q-$(git branch --show).out
+    make nixie | tee /tmp/nixie-claude-q-$(git branch --show).out
+    make lint | tee /tmp/lint-claude-q-$(git branch --show).out
+    make typecheck | tee /tmp/typecheck-claude-q-$(git branch --show).out
+    make test | tee /tmp/test-claude-q-$(git branch --show).out
 
 ## Validation and Acceptance
 
@@ -194,7 +195,7 @@ Acceptance checks:
   cuprum with no direct `plumbum` or `subprocess` imports.
 - `claude_q/cli/helpers.py` launches the editor via cuprum and preserves error
   messaging on non-zero exit.
-- `pyproject.toml` lists `cuprum==0.1.0` and no `plumbum` dependency.
+- `pyproject.toml` lists `cuprum>=0.1.0, <0.2.0` and no `plumbum` dependency.
 - Docs and README contain no references to plumbum, and any subprocess
   mentions reflect cuprum usage context.
 
@@ -236,8 +237,8 @@ Call sites:
 
 Dependency updates:
 
-- Replace `plumbum` with `cuprum==0.1.0` in `pyproject.toml` and regenerate
-  `uv.lock`.
+- Replace `plumbum` with `cuprum>=0.1.0, <0.2.0` in `pyproject.toml` and
+  regenerate `uv.lock`.
 
 ## Revision note
 
