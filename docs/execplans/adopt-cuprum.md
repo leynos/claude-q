@@ -10,7 +10,7 @@ PLANS.md is not present in this repository.
 
 ## Purpose / big picture
 
-Replace all runtime usage of `subprocess` and `plumbum` with `cuprum` v0.1.0 so
+Replace all runtime usage of `subprocess` and `plumbum` with `cuprum` v0.1.0, so
 command execution is centralized, typed, and allowlist-aware. Users should see
 no behaviour changes: git-derived topics, editor launches, and hook outputs
 remain identical, while developers gain a single execution path that is easier

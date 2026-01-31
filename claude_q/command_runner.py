@@ -73,6 +73,14 @@ class RunOptions:
     capture: bool = True
     context: ExecutionContext | None = None
 
+    def __post_init__(self) -> None:
+        """Validate mutually exclusive context fields."""
+        if self.context is None:
+            return
+        if any(value is not None for value in (self.cwd, self.env, self.tags)):
+            msg = "context is mutually exclusive with cwd/env/tags"
+            raise ValueError(msg)
+
 
 def build_catalogue(programs: typ.Iterable[Program]) -> ProgramCatalogue:
     """Create a project catalogue for the provided programs.
