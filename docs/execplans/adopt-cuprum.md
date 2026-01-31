@@ -1,8 +1,9 @@
 # Replace subprocess and plumbum with cuprum
 
-This ExecPlan is a living document. The sections `Constraints`, `Tolerances`,
-`Risks`, `Progress`, `Surprises & Discoveries`, `Decision Log`, and
-`Outcomes & Retrospective` must be kept up to date as work proceeds.
+This ExecPlan is a living document. The sections `Constraints`,
+`Tolerances (exception triggers)`, `Risks`, `Progress`,
+`Surprises & discoveries`, `Decision log`, and `Outcomes & retrospective` must
+be kept up to date as work proceeds.
 
 Status: COMPLETE
 
@@ -10,9 +11,9 @@ PLANS.md is not present in this repository.
 
 ## Purpose / big picture
 
-Replace all runtime usage of `subprocess` and `plumbum` with `cuprum` v0.1.0, so
-command execution is centralized, typed, and allowlist-aware. Users should see
-no behaviour changes: git-derived topics, editor launches, and hook outputs
+Replace all runtime usage of `subprocess` and `plumbum` with `cuprum` v0.1.0,
+so command execution is centralized, typed, and allowlist-aware. Users should
+see no behaviour changes: git-derived topics, editor launches, and hook outputs
 remain identical, while developers gain a single execution path that is easier
 to test and observe. Success is observable when all tests pass and the
 command-line interface (CLI) and hook flows behave the same as before
@@ -52,10 +53,9 @@ command-line interface (CLI) and hook flows behave the same as before
   inspect cuprum catalogue and create a project-specific catalogue with
   explicit programs.
 - Risk: cuprum's application programming interface (API) for stdin input may
-  differ from `subprocess.run`, which
-  could affect `run_command` semantics. Severity: low Likelihood: low
-  Mitigation: confirm whether input is used; adjust signatures only if unused
-  or supported by cuprum.
+  differ from `subprocess.run`, which could affect `run_command` semantics.
+  Severity: low Likelihood: low Mitigation: confirm whether input is used;
+  adjust signatures only if unused or supported by cuprum.
 - Risk: tests currently patch plumbum objects and will need rework, increasing
   churn. Severity: low Likelihood: medium Mitigation: introduce a small wrapper
   function to patch in tests rather than mocking cuprum internals.
@@ -139,7 +139,7 @@ Each stage ends with validation; do not proceed if the stage's validation fails.
 
 ## Concrete steps
 
-1. Inventory and catalogue check (run from repo root):
+1. [ ] Inventory and catalogue check (run from repo root):
 
     ```bash
     rg "plumbum" -n
@@ -149,14 +149,14 @@ Each stage ends with validation; do not proceed if the stage's validation fails.
 
     Use a read-eval-print loop (REPL) for the same inspection if preferred.
 
-2. Update tests (stage B):
+2. [ ] Update tests (stage B):
 
     - Modify `tests/test_git_integration.py` to patch the new cuprum wrapper
       function or class instead of `plumbum.cmd.git`.
     - Add new unit tests for the wrapper module if created.
     - Run tests and confirm expected failures before implementation changes.
 
-3. Implement cuprum wrapper and replace usage (stage C):
+3. [ ] Implement cuprum wrapper and replace usage (stage C):
 
     - Add new helper module and update imports in:
       - `claude_q/git_integration.py`
@@ -165,7 +165,7 @@ Each stage ends with validation; do not proceed if the stage's validation fails.
     - Ensure `ExecutionContext(cwd=...)` is used where needed.
     - Preserve existing output parsing and error handling.
 
-4. Update dependencies and docs (stage D):
+4. [ ] Update dependencies and docs (stage D):
 
     - Edit `pyproject.toml` to replace plumbum with
       `cuprum>=0.1.0, <0.2.0`.
@@ -173,7 +173,7 @@ Each stage ends with validation; do not proceed if the stage's validation fails.
     - Update `README.md`, `docs/scripting-standards.md`, and any docstrings to
       reference cuprum.
 
-5. Validate quality gates (use tee for logs):
+5. [ ] Validate quality gates (use tee for logs):
 
     ```bash
     make fmt | tee /tmp/fmt-claude-q-$(git branch --show).out
