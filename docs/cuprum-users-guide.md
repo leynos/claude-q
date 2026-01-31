@@ -1,4 +1,4 @@
-# cuprum users' guide
+# Cuprum users' guide
 
 ## Program catalogue
 
