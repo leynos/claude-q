@@ -14,8 +14,9 @@ Replace all runtime usage of `subprocess` and `plumbum` with `cuprum` v0.1.0, so
 command execution is centralized, typed, and allowlist-aware. Users should see
 no behaviour changes: git-derived topics, editor launches, and hook outputs
 remain identical, while developers gain a single execution path that is easier
-to test and observe. Success is observable when all tests pass and the CLI and
-hook flows behave the same as before (including exit codes and stdout/stderr).
+to test and observe. Success is observable when all tests pass and the
+command-line interface (CLI) and hook flows behave the same as before
+(including exit codes and stdout/stderr).
 
 ## Constraints
 
@@ -50,7 +51,8 @@ hook flows behave the same as before (including exit codes and stdout/stderr).
   a custom `ProgramCatalogue`. Severity: medium Likelihood: medium Mitigation:
   inspect cuprum catalogue and create a project-specific catalogue with
   explicit programs.
-- Risk: cuprum's API for stdin input may differ from `subprocess.run`, which
+- Risk: cuprum's application programming interface (API) for stdin input may
+  differ from `subprocess.run`, which
   could affect `run_command` semantics. Severity: low Likelihood: low
   Mitigation: confirm whether input is used; adjust signatures only if unused
   or supported by cuprum.
@@ -145,7 +147,7 @@ Each stage ends with validation; do not proceed if the stage's validation fails.
     python -c "import cuprum; print(cuprum.DEFAULT_CATALOGUE)"
     ```
 
-    Use a REPL for the same inspection if preferred.
+    Use a read-eval-print loop (REPL) for the same inspection if preferred.
 
 2. Update tests (stage B):
 
