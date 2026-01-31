@@ -319,7 +319,7 @@ count = (
 ).run_sync().stdout.strip()
 ```
 
-## pathlib: robust path manipulation
+## Pathlib: robust path manipulation
 
 ### Project roots, joins, and ensuring directories
 
@@ -373,7 +373,7 @@ except FileNotFoundError:
     pass
 ```
 
-## Cyclopts + cuprum + pathlib together (reference script)
+## Cyclopts + Cuprum + Pathlib together (reference script)
 
 ```python
 #!/usr/bin/env -S uv run python

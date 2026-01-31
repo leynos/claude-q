@@ -11,9 +11,10 @@ Run a git command with a specific working directory::
 
     from cuprum import Program
 
-    from claude_q.command_runner import run_sync
+    from claude_q.command_runner import RunOptions, run_sync
 
-    result = run_sync(Program("git"), ["status"], cwd=Path("."))
+    options = RunOptions(cwd=Path("."))
+    result = run_sync(Program("git"), ["status"], options=options)
     if not result.ok:
         raise RuntimeError(result.stderr or "git failed")
 
@@ -109,6 +110,12 @@ def _builder_for(program: Program) -> typ.Callable[..., SafeCmd]:
     return sh.make(program, catalogue=catalogue)
 
 
+class _ContextKwargs(typ.TypedDict, total=False):
+    cwd: str
+    env: dict[str, str]
+    tags: dict[str, str]
+
+
 def run_sync(
     program: Program,
     args: typ.Sequence[str],
@@ -125,7 +132,7 @@ def run_sync(
         Command arguments excluding the program name.
     options : RunOptions | None, optional
         Settings for the execution, including cwd/env/tags and echo/capture
-        behavior.
+        behaviour.
 
     Returns
     -------
@@ -138,7 +145,7 @@ def run_sync(
     opts = options or RunOptions()
     context = opts.context
     if context is None:
-        context_kwargs: dict[str, typ.Any] = {}
+        context_kwargs: _ContextKwargs = {}
         if opts.cwd is not None:
             context_kwargs["cwd"] = str(opts.cwd)
         if opts.env is not None:

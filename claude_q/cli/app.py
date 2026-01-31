@@ -28,6 +28,7 @@ import cyclopts
 
 from claude_q import __version__
 from claude_q.cli.helpers import (
+    EditorError,
     dequeue_with_poll,
     edit_text,
     read_stdin_text,
@@ -371,7 +372,7 @@ def main() -> int:
     except ValueError as e:
         sys.stderr.write(f"q: {e}\n")
         return 2
-    except RuntimeError as e:
+    except EditorError as e:
         sys.stderr.write(f"q: {e}\n")
         return 2
     except KeyboardInterrupt:

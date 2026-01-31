@@ -8,7 +8,7 @@ Status: COMPLETE
 
 PLANS.md is not present in this repository.
 
-## Purpose / Big Picture
+## Purpose / big picture
 
 Replace all runtime usage of `subprocess` and `plumbum` with `cuprum` v0.1.0 so
 command execution is centralized, typed, and allowlist-aware. Users should see
@@ -30,7 +30,7 @@ hook flows behave the same as before (including exit codes and stdout/stderr).
 - Do not change unrelated modules or refactor beyond what is required to
   switch execution backends.
 
-## Tolerances (Exception Triggers)
+## Tolerances (exception triggers)
 
 - Scope: if replacing execution requires edits to more than 14 files or more
   than 450 net lines, stop and escalate.
@@ -70,11 +70,11 @@ hook flows behave the same as before (including exit codes and stdout/stderr).
 - [x] (2026-01-30 01:22Z) Updated documentation and dependency metadata.
 - [x] (2026-01-30 01:45Z) Ran formatting, linting, typecheck, and tests.
 
-## Surprises & Discoveries
+## Surprises & discoveries
 
 - None yet.
 
-## Decision Log
+## Decision log
 
 - Decision: introduce a small cuprum wrapper module to centralize command
   construction and make testing deterministic. Rationale: reduces duplication
@@ -85,14 +85,14 @@ hook flows behave the same as before (including exit codes and stdout/stderr).
   sites only run git commands without stdin, so explicit rejection avoids
   silently ignoring input. Date/Author: 2026-01-30 (assistant)
 
-## Outcomes & Retrospective
+## Outcomes & retrospective
 
 - Cuprum now backs all command execution for git helpers and editor launches,
   with a shared `command_runner` helper and updated tests/documentation.
 - The migration was straightforward; the only adjustment was guarding against
   `None` stdout in hook helpers to satisfy type checking.
 
-## Context and Orientation
+## Context and orientation
 
 Current command execution is centralized through cuprum:
 
@@ -109,7 +109,7 @@ Current command execution is centralized through cuprum:
 
 Cuprum usage guidance and APIs are documented in `docs/cuprum-users-guide.md`.
 
-## Plan of Work
+## Plan of work
 
 Stage A: inventory and design (no code changes). Confirm cuprum catalogue
 contents and decide whether to use `DEFAULT_CATALOGUE` or a project-specific
@@ -135,13 +135,15 @@ standards). Update any docstrings mentioning subprocess/plumbum.
 
 Each stage ends with validation; do not proceed if the stage's validation fails.
 
-## Concrete Steps
+## Concrete steps
 
 1. Inventory and catalogue check (run from repo root):
 
+    ```bash
     rg "plumbum" -n
     rg "subprocess" -n
     python -c "import cuprum; print(cuprum.DEFAULT_CATALOGUE)"
+    ```
 
     Use a REPL for the same inspection if preferred.
 
@@ -171,14 +173,16 @@ Each stage ends with validation; do not proceed if the stage's validation fails.
 
 5. Validate quality gates (use tee for logs):
 
+    ```bash
     make fmt | tee /tmp/fmt-claude-q-$(git branch --show).out
     make markdownlint | tee /tmp/markdownlint-claude-q-$(git branch --show).out
     make nixie | tee /tmp/nixie-claude-q-$(git branch --show).out
     make lint | tee /tmp/lint-claude-q-$(git branch --show).out
     make typecheck | tee /tmp/typecheck-claude-q-$(git branch --show).out
     make test | tee /tmp/test-claude-q-$(git branch --show).out
+    ```
 
-## Validation and Acceptance
+## Validation and acceptance
 
 Quality criteria (what done means):
 
@@ -199,21 +203,21 @@ Acceptance checks:
 - Docs and README contain no references to plumbum, and any subprocess
   mentions reflect cuprum usage context.
 
-## Idempotence and Recovery
+## Idempotence and recovery
 
 All steps are repeatable. If a command fails, fix the underlying issue and
 re-run the same stage. If formatting changes reflow unrelated files, keep the
 changes together with the plan's commit to maintain consistency. If a cuprum
 API gap is discovered, stop and escalate before changing behaviour.
 
-## Artifacts and Notes
+## Artifacts and notes
 
 - Store command logs under `/tmp` using the naming convention in the concrete
   steps.
 - Keep a short transcript of any failed cuprum prototype steps here once
   discovered.
 
-## Interfaces and Dependencies
+## Interfaces and dependencies
 
 Create a thin wrapper module to isolate cuprum usage, for example:
 

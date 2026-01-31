@@ -32,6 +32,35 @@ if typ.TYPE_CHECKING:
     from claude_q.core import QueueStore
 
 
+class EditorError(Exception):
+    """Editor invocation failed.
+
+    Attributes
+    ----------
+    exit_code : int | None
+        Exit code returned by the editor.
+    cmd : tuple[str, ...]
+        Command executed.
+
+    """
+
+    def __init__(self, *, exit_code: int | None, cmd: list[str]) -> None:
+        """Create an EditorError with structured command details.
+
+        Parameters
+        ----------
+        exit_code : int | None
+            Exit code returned by the editor.
+        cmd : list[str]
+            Command executed.
+
+        """
+        self.exit_code = exit_code
+        self.cmd = tuple(cmd)
+        msg = f"editor exited with status {exit_code}: {' '.join(self.cmd)}"
+        super().__init__(msg)
+
+
 def editor_cmd() -> list[str]:
     """Get editor command from environment variables.
 
@@ -67,7 +96,7 @@ def edit_text(initial: str = "") -> str:
 
     Raises
     ------
-    RuntimeError
+    EditorError
         If the editor exits with a non-zero status.
 
     """
@@ -84,8 +113,7 @@ def edit_text(initial: str = "") -> str:
         options = RunOptions(capture=False, echo=True)
         result = run_sync(program, cmd[1:], options=options)
         if not result.ok:
-            msg = f"editor exited with status {result.exit_code}: {' '.join(cmd)}"
-            raise RuntimeError(msg)
+            raise EditorError(exit_code=result.exit_code, cmd=cmd)
         return path.read_text(encoding="utf-8")
     finally:
         path.unlink(missing_ok=True)
