@@ -139,7 +139,8 @@ Each stage ends with validation; do not proceed if the stage's validation fails.
 
 ## Concrete steps
 
-1. [ ] Inventory and catalogue check (run from repo root):
+- [ ] 1.1 Inventory and catalogue check.
+  - [ ] 1.1.1 Run discovery commands (from the repo root):
 
     ```bash
     rg "plumbum" -n
@@ -149,31 +150,30 @@ Each stage ends with validation; do not proceed if the stage's validation fails.
 
     Use a read-eval-print loop (REPL) for the same inspection if preferred.
 
-2. [ ] Update tests (stage B):
+- [ ] 1.2 Update tests (stage B).
+  - [ ] 1.2.1 Modify `tests/test_git_integration.py` to patch the new cuprum
+    wrapper function or class instead of `plumbum.cmd.git`.
+  - [ ] 1.2.2 Add new unit tests for the wrapper module if created.
+  - [ ] 1.2.3 Run tests and confirm expected failures before implementation
+    changes.
 
-    - Modify `tests/test_git_integration.py` to patch the new cuprum wrapper
-      function or class instead of `plumbum.cmd.git`.
-    - Add new unit tests for the wrapper module if created.
-    - Run tests and confirm expected failures before implementation changes.
+- [ ] 1.3 Implement cuprum wrapper and replace usage (stage C).
+  - [ ] 1.3.1 Add new helper module and update imports in:
+    - `claude_q/git_integration.py`
+    - `claude_q/hooks/_git_subprocess.py`
+    - `claude_q/cli/helpers.py`
+  - [ ] 1.3.2 Ensure `ExecutionContext(cwd=...)` is used where needed.
+  - [ ] 1.3.3 Preserve existing output parsing and error handling.
 
-3. [ ] Implement cuprum wrapper and replace usage (stage C):
+- [ ] 1.4 Update dependencies and docs (stage D).
+  - [ ] 1.4.1 Edit `pyproject.toml` to replace plumbum with
+    `cuprum>=0.1.0, <0.2.0`.
+  - [ ] 1.4.2 Regenerate `uv.lock` using the project's lock workflow.
+  - [ ] 1.4.3 Update `README.md`, `docs/scripting-standards.md`, and any
+    docstrings to reference cuprum.
 
-    - Add new helper module and update imports in:
-      - `claude_q/git_integration.py`
-      - `claude_q/hooks/_git_subprocess.py`
-      - `claude_q/cli/helpers.py`
-    - Ensure `ExecutionContext(cwd=...)` is used where needed.
-    - Preserve existing output parsing and error handling.
-
-4. [ ] Update dependencies and docs (stage D):
-
-    - Edit `pyproject.toml` to replace plumbum with
-      `cuprum>=0.1.0, <0.2.0`.
-    - Regenerate `uv.lock` using the project's lock workflow.
-    - Update `README.md`, `docs/scripting-standards.md`, and any docstrings to
-      reference cuprum.
-
-5. [ ] Validate quality gates (use tee for logs):
+- [ ] 1.5 Validate quality gates (use tee for logs).
+  - [ ] 1.5.1 Run validation commands:
 
     ```bash
     make fmt | tee /tmp/fmt-claude-q-$(git branch --show).out
