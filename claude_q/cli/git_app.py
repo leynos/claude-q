@@ -26,7 +26,12 @@ from pathlib import (
 import cyclopts
 
 from claude_q import __version__
-from claude_q.cli.helpers import dequeue_with_poll, edit_text, read_stdin_text
+from claude_q.cli.helpers import (
+    EditorError,
+    dequeue_with_poll,
+    edit_text,
+    read_stdin_text,
+)
 from claude_q.core import QueueStore, default_base_dir
 from claude_q.git_integration import GitError, derive_topic
 
@@ -159,7 +164,7 @@ def git_q_main() -> int:
     except ValueError as e:
         sys.stderr.write(f"git q: {e}\n")
         return 2
-    except RuntimeError as e:
+    except EditorError as e:
         sys.stderr.write(f"git q: {e}\n")
         return 2
     except GitError as e:

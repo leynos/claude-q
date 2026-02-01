@@ -1,19 +1,20 @@
 r"""Tests for claude_q.git_integration.
 
 Covers repository discovery, branch/remote parsing, and topic derivation. Git
-interactions are mocked by patching the plumbum ``git`` command object to return
+interactions are mocked by patching the cuprum-backed command runner to return
 fixed stdout or raise exceptions.
 
 Examples
 --------
 Stub git command output::
 
-    mock_git.__getitem__.return_value.return_value = "origin\\n"
+    mock_run_sync.return_value = FakeResult(stdout="origin\\n")
 
 """
 
 from __future__ import annotations
 
+import dataclasses as dc
 from unittest import mock
 
 import pytest
@@ -27,73 +28,85 @@ from claude_q.git_integration import (
 )
 
 
-@mock.patch("claude_q.git_integration.git")
+@dc.dataclass(frozen=True)
+class FakeResult:
+    """Minimal cuprum-like command result for git tests."""
+
+    stdout: str
+    ok: bool = True
+    exit_code: int = 0
+
+
+@mock.patch("claude_q.git_integration.run_sync")
 @pytest.mark.parametrize(
     ("result", "expected"),
     [
-        ("origin\nupstream\n", "origin"),
-        ("", ""),
+        (FakeResult(stdout="origin\nupstream\n"), "origin"),
+        (FakeResult(stdout=""), ""),
+        (FakeResult(stdout="origin\n", ok=False, exit_code=1), ""),
         (Exception("git error"), ""),
     ],
 )
 def test_get_first_remote_outputs(
-    mock_git: mock.MagicMock, result: str | Exception, expected: str
+    mock_run_sync: mock.MagicMock, result: FakeResult | Exception, expected: str
 ) -> None:
     """Test get_first_remote output cases."""
     match result:
         case Exception() as err:
-            mock_git.__getitem__.return_value.side_effect = err
+            mock_run_sync.side_effect = err
         case _:
-            mock_git.__getitem__.return_value.return_value = result
+            mock_run_sync.return_value = result
 
     remote = get_first_remote()
     assert remote == expected, "should return expected remote output"
 
 
-@mock.patch("claude_q.git_integration.git")
+@mock.patch("claude_q.git_integration.run_sync")
 @pytest.mark.parametrize(
     ("result", "expected"),
     [
-        ("main\n", "main"),
-        ("HEAD\n", ""),
-        ("", ""),
+        (FakeResult(stdout="main\n"), "main"),
+        (FakeResult(stdout="HEAD\n"), ""),
+        (FakeResult(stdout=""), ""),
+        (FakeResult(stdout="main\n", ok=False, exit_code=1), ""),
         (Exception("git error"), ""),
     ],
 )
 def test_get_current_branch_outputs(
-    mock_git: mock.MagicMock, result: str | Exception, expected: str
+    mock_run_sync: mock.MagicMock, result: FakeResult | Exception, expected: str
 ) -> None:
     """Test get_current_branch output cases."""
     match result:
         case Exception() as err:
-            mock_git.__getitem__.return_value.side_effect = err
+            mock_run_sync.side_effect = err
         case _:
-            mock_git.__getitem__.return_value.return_value = result
+            mock_run_sync.return_value = result
 
     branch = get_current_branch()
     assert branch == expected, "should return expected branch output"
 
 
-@mock.patch("claude_q.git_integration.git")
+@mock.patch("claude_q.git_integration.run_sync")
 @pytest.mark.parametrize(
     ("result", "expected_state"),
     [
-        ("true\n", True),
-        ("false\n", False),
+        (FakeResult(stdout="true\n"), True),
+        (FakeResult(stdout="false\n"), False),
+        (FakeResult(stdout="true\n", ok=False, exit_code=1), False),
         (Exception("git error"), False),
     ],
 )
 def test_is_in_git_worktree_outputs(
-    mock_git: mock.MagicMock,
-    result: str | Exception,
+    mock_run_sync: mock.MagicMock,
+    result: FakeResult | Exception,
     expected_state: bool,  # noqa: FBT001
 ) -> None:
     """Test is_in_git_worktree output cases."""
     match result:
         case Exception() as err:
-            mock_git.__getitem__.return_value.side_effect = err
+            mock_run_sync.side_effect = err
         case _:
-            mock_git.__getitem__.return_value.return_value = result
+            mock_run_sync.return_value = result
 
     assert is_in_git_worktree() is expected_state, (
         "should return expected worktree state"

@@ -1,10 +1,9 @@
-"""Subprocess-based git helpers for hook wrappers.
+"""Cuprum-based git helpers for hook wrappers.
 
-Uses subprocess to query git state for a specific working directory, matching
-the behaviour of the plumbum-backed helpers. Intended for hook wrappers that
-need git context without importing the main CLI. Exposes ``run_command``,
-``get_first_remote``, ``get_current_branch``, ``is_in_git_worktree``, and
-``derive_topic``.
+Uses cuprum to query git state for a specific working directory, matching the
+behaviour of the CLI helpers. Intended for hook wrappers that need git context
+without importing the main CLI. Exposes ``run_command``, ``get_first_remote``,
+``get_current_branch``, ``is_in_git_worktree``, and ``derive_topic``.
 
 Examples
 --------
@@ -18,9 +17,13 @@ Call helpers with an explicit working directory::
 
 from __future__ import annotations
 
-import subprocess  # noqa: S404  # FIXME(leynos): https://github.com/leynos/claude-q/issues/123 - Hook helper subprocesses.
+import typing as typ
 
+from claude_q.command_runner import GIT, RunOptions, run_sync
 from claude_q.git_integration import GitError, combine_topic
+
+if typ.TYPE_CHECKING:
+    from cuprum import CommandResult
 
 
 def run_command(
@@ -28,8 +31,8 @@ def run_command(
     cwd: str,
     *,
     input_text: str | None = None,
-) -> subprocess.CompletedProcess[str]:
-    """Run a subprocess command and capture output.
+) -> CommandResult:
+    """Run a command and capture output.
 
     Parameters
     ----------
@@ -42,18 +45,25 @@ def run_command(
 
     Returns
     -------
-    subprocess.CompletedProcess[str]
-        Completed process with stdout/stderr/returncode.
+    CommandResult
+        Completed process with stdout/stderr/exit_code.
+
+    Raises
+    ------
+    ValueError
+        If stdin input is provided or the command is not a git invocation.
 
     """
-    return subprocess.run(  # noqa: S603  # FIXME(leynos): https://github.com/leynos/claude-q/issues/123 - Controlled git command list.
-        cmd,
-        cwd=cwd,
-        text=True,
-        input=input_text,
-        capture_output=True,
-        check=False,
-    )
+    if input_text is not None:
+        msg = "stdin input is not supported by the cuprum runner"
+        raise ValueError(msg)
+    if not cmd:
+        msg = "command list must not be empty"
+        raise ValueError(msg)
+    if cmd[0] != "git":
+        msg = "only git commands are supported by this helper"
+        raise ValueError(msg)
+    return run_sync(GIT, cmd[1:], options=RunOptions(cwd=cwd))
 
 
 def get_first_remote(cwd: str) -> str:
@@ -71,9 +81,10 @@ def get_first_remote(cwd: str) -> str:
 
     """
     result = run_command(["git", "remote"], cwd)
-    if result.returncode != 0:
+    if not result.ok:
         return ""
-    remotes = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    stdout = result.stdout or ""
+    remotes = [line.strip() for line in stdout.splitlines() if line.strip()]
     return remotes[0] if remotes else ""
 
 
@@ -92,9 +103,9 @@ def get_current_branch(cwd: str) -> str:
 
     """
     result = run_command(["git", "branch", "--show-current"], cwd)
-    if result.returncode != 0:
+    if not result.ok:
         return ""
-    branch = result.stdout.strip()
+    branch = (result.stdout or "").strip()
     return "" if branch in {"", "HEAD"} else branch
 
 
@@ -113,7 +124,8 @@ def is_in_git_worktree(cwd: str) -> bool:
 
     """
     result = run_command(["git", "rev-parse", "--is-inside-work-tree"], cwd)
-    return result.returncode == 0 and result.stdout.strip() == "true"
+    stdout = result.stdout or ""
+    return result.ok and stdout.strip() == "true"
 
 
 def derive_topic(cwd: str) -> str:

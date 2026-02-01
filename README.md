@@ -366,8 +366,8 @@ Built with:
 
 - [Cyclopts](https://github.com/BrianPugh/cyclopts) - Modern Python CLI
   framework
-- [Plumbum](https://github.com/tomerfiliba/plumbum) - Shell combinators for
-  Python
+- [Cuprum](docs/cuprum-users-guide.md) - Typed, allowlist-aware command
+  execution
 - [json5kit](https://github.com/tusharsadhwani/json5kit) - Lossless JSON editing
 
 Inspired by the need for better task management in Claude Code workflows.

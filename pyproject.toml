@@ -7,7 +7,7 @@ requires-python = ">=3.13"
 license = { text = "ISC" }
 dependencies = [
     "cyclopts>=2.9",
-    "plumbum",
+    "cuprum>=0.1.0, <0.2.0",
 ]
 
 [project.optional-dependencies]

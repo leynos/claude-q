@@ -19,7 +19,7 @@ Derive a topic for the current working directory::
 
 from __future__ import annotations
 
-from plumbum.cmd import git
+from claude_q.command_runner import GIT, run_sync
 
 
 class GitError(Exception):
@@ -41,11 +41,10 @@ def get_first_remote() -> str:
         First remote name, or an empty string if none are available.
 
     """
-    try:
-        result = git["remote"]()
-        remotes = [line.strip() for line in result.splitlines() if line.strip()]
-    except Exception:  # noqa: BLE001  # TODO(leynos): https://github.com/leynos/claude-q/issues/123 - Plumbum raises varied exceptions.
+    output = _run_git_output(["remote"])
+    if output is None:
         return ""
+    remotes = [line.strip() for line in output.splitlines() if line.strip()]
     return remotes[0] if remotes else ""
 
 
@@ -58,12 +57,14 @@ def get_current_branch() -> str:
         Current branch name, or an empty string if detached or unavailable.
 
     """
-    try:
-        branch = git["branch", "--show-current"]().strip()
-        # "HEAD" or empty means detached HEAD
-        return "" if branch in {"", "HEAD"} else branch  # noqa: TRY300  # TODO(leynos): https://github.com/leynos/claude-q/issues/123 - FIXME: intentional early return.
-    except Exception:  # noqa: BLE001  # TODO(leynos): https://github.com/leynos/claude-q/issues/123 - Plumbum raises varied exceptions.
+    output = _run_git_output(["branch", "--show-current"])
+    if output is None:
         return ""
+    branch = output.strip()
+    # "HEAD" or empty means detached HEAD
+    # TODO(leynos): https://github.com/leynos/claude-q/issues/123
+    # Intentional early return.
+    return "" if branch in {"", "HEAD"} else branch
 
 
 def is_in_git_worktree() -> bool:
@@ -75,11 +76,10 @@ def is_in_git_worktree() -> bool:
         True if inside a git worktree, False otherwise.
 
     """
-    try:
-        result = git["rev-parse", "--is-inside-work-tree"]().strip()
-    except Exception:  # noqa: BLE001  # TODO(leynos): https://github.com/leynos/claude-q/issues/123 - Plumbum raises varied exceptions.
+    output = _run_git_output(["rev-parse", "--is-inside-work-tree"])
+    if output is None:
         return False
-    return result == "true"
+    return output.strip() == "true"
 
 
 def combine_topic(remote: str, branch: str) -> str:
@@ -105,6 +105,17 @@ def combine_topic(remote: str, branch: str) -> str:
     if branch:
         return branch
     return ""
+
+
+def _run_git_output(args: list[str]) -> str | None:
+    """Run a git command and return stdout on success."""
+    try:
+        result = run_sync(GIT, args)
+    except Exception:  # noqa: BLE001  # TODO(leynos): https://github.com/leynos/claude-q/issues/123 - Cuprum raises varied exceptions.
+        return None
+    if not result.ok:
+        return None
+    return result.stdout or ""
 
 
 def derive_topic() -> str:
