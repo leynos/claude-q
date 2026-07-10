@@ -333,6 +333,10 @@ make test
 make check-fmt lint typecheck
 ```
 
+The lint gate refreshes the shared en-GB-oxendict dictionary when newer,
+regenerates `typos.toml`, and checks maintained Markdown with a pinned `typos`
+release. A valid committed config remains usable without network access.
+
 ### Project Structure
 
 ```text
