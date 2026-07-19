@@ -1,5 +1,8 @@
 # claude-q
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](
+https://deepwiki.com/leynos/claude-q)
+
 ## Topic-based FIFO queues for Claude Code session continuity
 
 `claude-q` provides simple, reliable task queuing that integrates seamlessly
