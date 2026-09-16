@@ -340,6 +340,12 @@ The lint gate refreshes the shared en-GB-oxendict dictionary when newer,
 regenerates `typos.toml`, and checks maintained Markdown with a pinned `typos`
 release. A valid committed config remains usable without network access.
 
+`make fmt` and `make check-fmt` run `mdtablefix` (version 0.6.0, the same
+release CI installs); install it once with
+`cargo install --locked mdtablefix --version 0.6.0`. `make fmt` also runs
+`markdownlint-cli2`, which CI provides through its GitHub action; locally
+install it with `bun install -g markdownlint-cli2` (or `npm install -g`).
+
 ### Project Structure
 
 ```text
