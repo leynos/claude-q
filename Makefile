@@ -70,9 +70,9 @@ lint: build ## Run linters
 	$(RUFF) check
 	+$(MAKE) spelling
 
-typecheck: build ty ## Run typechecking
-	ty --version
-	ty check
+typecheck: build ## Run typechecking
+	$(UV_ENV) uv run ty --version
+	$(UV_ENV) uv run ty check --extra-search-path scripts
 
 markdownlint: $(MDLINT) ## Lint Markdown files
 	$(MDLINT) '**/*.md'
