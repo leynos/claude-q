@@ -9,6 +9,17 @@ Cyclopts is the default command‑line interface (CLI) framework for new and
 updated scripts. This document supersedes prior guidance that recommended Typer
 as a default.
 
+## Continuous integration coverage
+
+Pull-request continuous integration (CI) generates serial Python coverage and
+compares it with the ratcheted `.coverage-baseline.python` value written by
+`main`. Pull requests do not invoke CodeScene, receive `CS_ACCESS_TOKEN`, or
+need a full Git history for coverage.
+
+The `coverage-main.yml` workflow runs after pushes to `main`. It refreshes the
+ratchet baseline and publishes the coverage report to CodeScene. This keeps the
+external service's baseline aligned with the branch that owns it.
+
 ## Rationale for adopting Cyclopts
 
 - Environment‑first configuration without glue. Cyclopts reads environment
