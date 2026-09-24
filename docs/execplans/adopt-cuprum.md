@@ -212,7 +212,7 @@ re-run the same stage. If formatting changes reflow unrelated files, keep the
 changes together with the plan's commit to maintain consistency. If a cuprum
 API gap is discovered, stop and escalate before changing behaviour.
 
-## Artifacts and notes
+## Artefacts and notes
 
 - Store command logs under `/tmp` using the naming convention in the concrete
   steps.
