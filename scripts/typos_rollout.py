@@ -54,8 +54,7 @@ def _string_list(table: cabc.Mapping[str, object], key: str) -> tuple[str, ...]:
     if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
         message = f"{key!r} must be a list of strings"
         raise TypeError(message)
-    string_values = typ.cast("list[str]", value)
-    return tuple(sorted(set(string_values)))
+    return tuple(sorted(set(typ.cast("list[str]", value))))
 
 
 def _table(document: cabc.Mapping[str, object], key: str) -> cabc.Mapping[str, object]:
