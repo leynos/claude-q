@@ -85,7 +85,7 @@ jobs:
         # The ref check is what stops a dispatch from a branch uploading that
         # branch's coverage as the trunk's.
         if: steps.codescene-token.outputs.available == 'true' && github.ref == 'refs/heads/main'
-        uses: leynos/shared-actions/.github/actions/upload-codescene-coverage@3822201c597078a5ed1939bdf067fe06a3d78a9d
+        uses: leynos/shared-actions/.github/actions/upload-codescene-coverage@438ad8a99a3580e753189c47391a1652c5f46ed4
         with:
           format: cobertura
           path: coverage.xml
