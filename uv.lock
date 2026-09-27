@@ -29,6 +29,7 @@ installer = [
 dev = [
     { name = "cmd-mox" },
     { name = "json5kit" },
+    { name = "packaging" },
     { name = "pyright" },
     { name = "pytest" },
     { name = "pytest-mock" },
@@ -51,6 +52,7 @@ provides-extras = ["installer"]
 dev = [
     { name = "cmd-mox" },
     { name = "json5kit" },
+    { name = "packaging", specifier = ">=26.0" },
     { name = "pyright" },
     { name = "pytest" },
     { name = "pytest-mock" },
