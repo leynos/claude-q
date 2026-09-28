@@ -34,6 +34,7 @@ from coverage_python_sources import (
     CoverageCall,
     coverage_calls,
     python_version_entry,
+    read_text_if_present,
     rejected_versions,
     requires_python,
     verdict,
@@ -42,6 +43,7 @@ from packaging.specifiers import SpecifierSet
 
 if typ.TYPE_CHECKING:
     import collections.abc as cabc
+    from pathlib import Path
 
 #: Minimal steps for the fixture workflows the selection tests build.
 SETUP: typ.Final[dict[str, object]] = {"uses": f"{SETUP_PYTHON}{'0' * 40}"}
@@ -54,7 +56,9 @@ CONFLICT: typ.Final[str] = "3.13"
 
 def _lane_calls() -> dict[str, list[CoverageCall]]:
     """Return both lanes' coverage calls, keyed by workflow file name."""
-    python_version = python_version_entry(ROOT / ".python-version")
+    python_version = python_version_entry(
+        read_text_if_present(ROOT / ".python-version")
+    )
     return {
         lane: coverage_calls(
             (WORKFLOWS / lane).read_text(encoding="utf-8"), python_version
@@ -225,6 +229,33 @@ def test_every_source_combination_is_read_and_judged(
     assert verdict(call) == (
         "undeclared" if not versions else "conflicting" if len(versions) > 1 else ""
     )
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        (None, ""),
+        ("", ""),
+        ("3.13\n", "3.13"),
+        ("# pinned\n\n  3.13  \n3.12\n", "3.13"),
+        ("# comments only\n", ""),
+    ],
+    ids=["absent", "empty", "one-entry", "first-entry-after-comments", "comments-only"],
+)
+def test_the_python_version_entry_is_the_first_non_comment_line(
+    text: str | None, expected: str
+) -> None:
+    """Parsing is pure: the first non-comment entry, or nothing."""
+    assert python_version_entry(text) == expected
+
+
+def test_a_python_version_file_is_read_from_the_tree(tmp_path: Path) -> None:
+    """A real ``.python-version`` feeds the parser; a missing one reads as absent."""
+    present = tmp_path / ".python-version"
+    present.write_text("# pinned\n3.12\n", encoding="utf-8")
+
+    assert python_version_entry(read_text_if_present(present)) == "3.12"
+    assert read_text_if_present(tmp_path / "missing" / ".python-version") is None
 
 
 @pytest.mark.parametrize(

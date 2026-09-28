@@ -79,11 +79,22 @@ def requires_python(pyproject: str) -> SpecifierSet:
     return SpecifierSet(tomllib.loads(pyproject)["project"]["requires-python"])
 
 
-def python_version_entry(path: Path) -> str:
-    """Return the first non-comment entry of a ``.python-version`` file, or empty."""
-    if not path.is_file():
-        return ""
-    entries = (line.strip() for line in path.read_text(encoding="utf-8").splitlines())
+def read_text_if_present(path: Path) -> str | None:
+    """Return a file's text, or ``None`` when the file does not exist.
+
+    The only file access in this module. A file that exists but cannot be read
+    raises, which fails the contract loudly rather than reading as absent.
+    """
+    return path.read_text(encoding="utf-8") if path.is_file() else None
+
+
+def python_version_entry(text: str | None) -> str:
+    """Return the first non-comment entry of ``.python-version`` text, or empty.
+
+    Pure: the caller reads the file (see :func:`read_text_if_present`), so the
+    parsing is tested on text alone. ``None`` means the file is absent.
+    """
+    entries = (line.strip() for line in (text or "").splitlines())
     return next((entry for entry in entries if entry and not entry.startswith("#")), "")
 
 
