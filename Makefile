@@ -4,16 +4,29 @@ MDFORMAT_ALL ?= mdformat-all
 TOOLS = $(MDFORMAT_ALL) ty $(MDLINT) uv
 VENV_TOOLS = pytest
 UV_ENV = UV_CACHE_DIR=.uv-cache UV_TOOL_DIR=.uv-tools
+
+UV ?= uv
+# The CV-005 CodeScene contracts live in shared-actions and run from a full
+# commit, so a fix is a pin bump. `.github/cv005.toml` holds this repository's
+# only parameters.
+CV005_CONTRACTS_REF ?= a38feb9be25755c30eca5bda96bd3786a5b89c6b
+CV005_CONTRACTS = $(UV_ENV) $(UV) tool run --python 3.13 \
+	--from 'git+https://github.com/leynos/shared-actions@$(CV005_CONTRACTS_REF)\#subdirectory=packages/cv005-contracts' \
+	cv005-contracts
+
 RUFF := $(UV_ENV) uv run ruff
 TYPOS_VERSION ?= 1.48.0
 TYPOS := uv tool run typos@$(TYPOS_VERSION)
 
 .PHONY: help all clean build build-release lint fmt check-fmt \
-        markdownlint nixie spelling test typecheck $(TOOLS) $(VENV_TOOLS)
+        markdownlint nixie spelling test typecheck $(TOOLS) $(VENV_TOOLS) test-workflow-contracts
 
 .DEFAULT_GOAL := all
 
-all: build check-fmt lint typecheck test
+test-workflow-contracts: ## Check the CV-005 CodeScene workflow contracts
+	$(CV005_CONTRACTS) check --repository .
+
+all: build check-fmt lint typecheck test test-workflow-contracts
 
 .venv: pyproject.toml
 	$(UV_ENV) uv venv --clear
