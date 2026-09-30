@@ -246,7 +246,7 @@ def test_the_python_version_entry_is_the_first_non_comment_line(
     text: str | None, expected: str
 ) -> None:
     """Parsing is pure: the first non-comment entry, or nothing."""
-    assert python_version_entry(text) == expected
+    assert python_version_entry(text) == expected, f"{text!r} should read {expected!r}"
 
 
 def test_a_python_version_file_is_read_from_the_tree(tmp_path: Path) -> None:
@@ -254,8 +254,12 @@ def test_a_python_version_file_is_read_from_the_tree(tmp_path: Path) -> None:
     present = tmp_path / ".python-version"
     present.write_text("# pinned\n3.12\n", encoding="utf-8")
 
-    assert python_version_entry(read_text_if_present(present)) == "3.12"
-    assert read_text_if_present(tmp_path / "missing" / ".python-version") is None
+    assert python_version_entry(read_text_if_present(present)) == "3.12", (
+        "a present file is read and parsed"
+    )
+    assert read_text_if_present(tmp_path / "missing" / ".python-version") is None, (
+        "a missing file reads as absent, not as empty text"
+    )
 
 
 @pytest.mark.parametrize(
