@@ -20,7 +20,6 @@ from pathlib import (
 )
 
 import pytest
-from codescene_contract_support import Documents, fresh_documents
 
 from claude_q.core import QueueStore
 
@@ -61,9 +60,3 @@ def queue_store(tmp_queue_dir: Path) -> QueueStore:
 
     """
     return QueueStore(tmp_queue_dir)
-
-
-@pytest.fixture
-def documents() -> Documents:
-    """Give each CV-005 contract test its own copy of the workflows to mutate."""
-    return fresh_documents()
