@@ -65,7 +65,7 @@ jobs:
       # The selection is the baseline every pull request's ratchet is measured
       # against, so ci.yml's must match it field for field.
       - name: Generate coverage
-        uses: leynos/shared-actions/.github/actions/generate-coverage@2a910bfcfd1ea4216419f9290331785f05b33320
+        uses: leynos/shared-actions/.github/actions/generate-coverage@88977798a5c3bae1549afb99642529488c665276
         env:
           UV_PYTHON: '3.13'
         with:
