@@ -1,5 +1,9 @@
 repository = "leynos/claude-q"
 
+# The Python every coverage generator measures under, pinned through UV_PYTHON.
+# The library also holds it inside `requires-python` (>=3.13).
+interpreter = "3.13"
+
 # What the ratchet baseline measures: the publisher's generator must carry
 # exactly these inputs, and every lane must measure the same selection.
 [selection]

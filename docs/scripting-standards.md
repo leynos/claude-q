@@ -49,8 +49,11 @@ check`, the shared contract library in `leynos/shared-actions`
 (`packages/cv005-contracts`), from a full commit named by `CV005_CONTRACTS_REF`
 in the Makefile, and CI runs it as its own step. A fix to
 the rules is therefore a pin bump. The target needs `uv`, which fetches the
-Python 3.13 the library runs under. The repository's only parameter is
-`repository` in `.github/cv005.toml`. The library's own suite proves each rule
+Python 3.13 the library runs under. The repository's parameters in
+`.github/cv005.toml` are `repository`, the publisher's `[selection]` and
+`interpreter = "3.13"`, which makes the library require `UV_PYTHON: '3.13'` on
+every `generate-coverage` step, in the lane and the publisher, and hold that
+version inside `requires-python`. The library's own suite proves each rule
 refuses the shape it exists to refuse, so this repository keeps no copy of the
 readers or the refusal cases. Its rules read every workflow a pull request can
 start, from its own events, reviews and comments, a merge queue, or a push not
