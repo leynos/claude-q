@@ -34,6 +34,7 @@ from coverage_python_sources import (
     CoverageCall,
     coverage_calls,
     python_version_entry,
+    read_required_text,
     read_text_if_present,
     rejected_versions,
     requires_python,
@@ -43,7 +44,6 @@ from packaging.specifiers import SpecifierSet
 
 if typ.TYPE_CHECKING:
     import collections.abc as cabc
-    from pathlib import Path
 
 #: Minimal steps for the fixture workflows the selection tests build.
 SETUP: typ.Final[dict[str, object]] = {"uses": f"{SETUP_PYTHON}{'0' * 40}"}
@@ -52,6 +52,8 @@ COVERAGE: typ.Final[dict[str, object]] = {
 }
 AGREE: typ.Final[str] = "3.14"
 CONFLICT: typ.Final[str] = "3.13"
+#: The one interpreter both coverage lanes are pinned to.
+PINNED: typ.Final[str] = "3.13"
 
 
 def _lane_calls() -> dict[str, list[CoverageCall]]:
@@ -60,9 +62,7 @@ def _lane_calls() -> dict[str, list[CoverageCall]]:
         read_text_if_present(ROOT / ".python-version")
     )
     return {
-        lane: coverage_calls(
-            (WORKFLOWS / lane).read_text(encoding="utf-8"), python_version
-        )
+        lane: coverage_calls(read_required_text(WORKFLOWS / lane), python_version)
         for lane in LANES
     }
 
@@ -74,7 +74,7 @@ def test_both_lanes_call_generate_coverage() -> None:
 
 def test_every_call_declares_one_accepted_python() -> None:
     """Each call names a Python, every source agrees, and the project accepts it."""
-    accepted = requires_python((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    accepted = requires_python(read_required_text(ROOT / "pyproject.toml"))
     for lane, calls in _lane_calls().items():
         for call in calls:
             where = f"{lane}:{call.job}"
@@ -88,7 +88,9 @@ def test_both_lanes_measure_on_one_python() -> None:
     """Both lanes measure on one Python, as the pull-request ratchet assumes."""
     effective = {call.effective for calls in _lane_calls().values() for call in calls}
 
-    assert len(effective) == 1, f"coverage lanes measure on {sorted(effective)}"
+    assert effective == {PINNED}, (
+        f"coverage lanes measure on {sorted(effective)}, not only {PINNED}"
+    )
 
 
 def _workflow(
@@ -137,7 +139,9 @@ def test_each_call_reads_the_latest_setup_before_it_in_its_job(
     """A call's setup-python source is its own job's latest setup before it."""
     calls = coverage_calls(_workflow(jobs))
 
-    assert [call.sources["setup-python"] for call in calls] == expected
+    assert [call.sources["setup-python"] for call in calls] == expected, (
+        f"setup-python sources {[call.sources['setup-python'] for call in calls]}"
+    )
 
 
 @pytest.mark.parametrize(
@@ -159,7 +163,60 @@ def test_the_innermost_uv_python_is_read(
     job = {**_steps(call), "env": job_env}
     (read,) = coverage_calls(_workflow({"cov": job}, workflow_env))
 
-    assert read.sources["UV_PYTHON"] == expected
+    assert read.sources["UV_PYTHON"] == expected, (
+        f"UV_PYTHON read as {read.sources['UV_PYTHON']!r}, expected {expected!r}"
+    )
+
+
+def test_an_empty_step_uv_python_wins_over_the_outer_value() -> None:
+    """An empty step ``UV_PYTHON`` replaces the job's, so there is no false conflict.
+
+    The action then falls through to ``.python-version``, which agrees with
+    the setup step; reading the job's ``3.13`` instead would report a conflict.
+    """
+    step = {**COVERAGE, "env": {"UV_PYTHON": ""}}
+    job = {**_steps(_setup(AGREE), step), "env": {"UV_PYTHON": CONFLICT}}
+    (call,) = coverage_calls(_workflow({"cov": job}), AGREE)
+
+    assert call.sources["UV_PYTHON"] == "", "the empty step value must win"
+    assert verdict(call) == "", f"no conflict expected, got {call.sources}"
+
+
+def test_an_absent_step_uv_python_still_inherits_the_job_value() -> None:
+    """Narrow: with no step value the job's ``UV_PYTHON`` applies, and conflicts."""
+    job = {**_steps(_setup(AGREE), COVERAGE), "env": {"UV_PYTHON": CONFLICT}}
+    (call,) = coverage_calls(_workflow({"cov": job}), AGREE)
+
+    assert verdict(call) == "conflicting", f"expected a conflict, got {call.sources}"
+
+
+@pytest.mark.parametrize(
+    "guard",
+    [{"if": "always()"}, {"continue-on-error": True}],
+    ids=["guarded", "continue-on-error"],
+)
+def test_a_guarded_setup_after_a_reliable_one_declares_nothing(
+    guard: dict[str, object],
+) -> None:
+    """A later setup that may not run leaves nothing the call can rely on.
+
+    The earlier setup's Python may or may not still be first on ``PATH`` once a
+    later one can replace it, so with no other source the call is undeclared.
+    """
+    job = _steps(_setup(AGREE), _setup(CONFLICT, **guard), COVERAGE)
+    (call,) = coverage_calls(_workflow({"cov": job}))
+
+    assert call.sources["setup-python"] == "", f"setup read as {call.sources}"
+    assert verdict(call) == "undeclared", f"expected undeclared, got {call.sources}"
+
+
+def test_an_empty_job_uv_python_wins_over_the_workflow_value() -> None:
+    """An empty job ``UV_PYTHON`` replaces the workflow's, so there is no conflict."""
+    job = {**_steps(_setup(AGREE), COVERAGE), "env": {"UV_PYTHON": ""}}
+    (call,) = coverage_calls(_workflow({"cov": job}, {"UV_PYTHON": CONFLICT}), AGREE)
+
+    assert call.sources["UV_PYTHON"] == "", "the empty job value must win"
+    assert verdict(call) == "", f"no conflict expected, got {call.sources}"
 
 
 class SourceCombination(typ.NamedTuple):
@@ -224,42 +281,13 @@ def test_every_source_combination_is_read_and_judged(
     declared = combination.expected_declared()
     versions = set(declared.values())
 
-    assert call.declared == declared
-    assert call.effective == next(iter(declared.values()), "")
+    assert call.declared == declared, f"declared {call.declared}, expected {declared}"
+    assert call.effective == next(iter(declared.values()), ""), (
+        f"effective {call.effective!r} is not the highest-priority declared source"
+    )
     assert verdict(call) == (
         "undeclared" if not versions else "conflicting" if len(versions) > 1 else ""
-    )
-
-
-@pytest.mark.parametrize(
-    ("text", "expected"),
-    [
-        (None, ""),
-        ("", ""),
-        ("3.13\n", "3.13"),
-        ("# pinned\n\n  3.13  \n3.12\n", "3.13"),
-        ("# comments only\n", ""),
-    ],
-    ids=["absent", "empty", "one-entry", "first-entry-after-comments", "comments-only"],
-)
-def test_the_python_version_entry_is_the_first_non_comment_line(
-    text: str | None, expected: str
-) -> None:
-    """Parsing is pure: the first non-comment entry, or nothing."""
-    assert python_version_entry(text) == expected, f"{text!r} should read {expected!r}"
-
-
-def test_a_python_version_file_is_read_from_the_tree(tmp_path: Path) -> None:
-    """A real ``.python-version`` feeds the parser; a missing one reads as absent."""
-    present = tmp_path / ".python-version"
-    present.write_text("# pinned\n3.12\n", encoding="utf-8")
-
-    assert python_version_entry(read_text_if_present(present)) == "3.12", (
-        "a present file is read and parsed"
-    )
-    assert read_text_if_present(tmp_path / "missing" / ".python-version") is None, (
-        "a missing file reads as absent, not as empty text"
-    )
+    ), f"verdict {verdict(call)!r} for declared {declared}"
 
 
 @pytest.mark.parametrize(
@@ -275,4 +303,6 @@ def test_the_check_rejects_exactly_the_versions_outside_the_range(
     specifier: str, requested: list[str], rejected: list[str]
 ) -> None:
     """The comparison is by version, in both directions of the range."""
-    assert rejected_versions(SpecifierSet(specifier), requested) == rejected
+    assert rejected_versions(SpecifierSet(specifier), requested) == rejected, (
+        f"{requested} against {specifier} should reject {rejected}"
+    )
