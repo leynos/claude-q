@@ -52,6 +52,8 @@ jobs:
       - name: Generate coverage
         if: github.event_name == 'pull_request'
         uses: leynos/shared-actions/.github/actions/generate-coverage@2a910bfcfd1ea4216419f9290331785f05b33320
+        env:
+          UV_PYTHON: '3.13'
         with:
           language: python
           python-source: ./claude_q
