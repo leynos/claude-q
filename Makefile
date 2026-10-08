@@ -9,7 +9,7 @@ UV ?= uv
 # The CV-005 CodeScene contracts live in shared-actions and run from a full
 # commit, so a fix is a pin bump. `.github/cv005.toml` holds this repository's
 # only parameters.
-CV005_CONTRACTS_REF ?= 013346ccfd37bd1e02eb430525233f1a4cd942b8
+CV005_CONTRACTS_REF ?= 88977798a5c3bae1549afb99642529488c665276
 CV005_CONTRACTS = $(UV_ENV) $(UV) tool run --python 3.13 \
 	--from 'git+https://github.com/leynos/shared-actions@$(CV005_CONTRACTS_REF)\#subdirectory=packages/cv005-contracts' \
 	cv005-contracts
