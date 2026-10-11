@@ -16,6 +16,9 @@ VENV_TOOLS = pytest
 # https://github.com/leynos/shared-actions/tree/main/uv_gate for the contract.
 UV_GATE ?= python3 scripts/uv_gate.py
 UV ?= uv
+# The helper finds uv on PATH, so a caller's UV=/path/to/uv is honoured by putting
+# that uv's directory first on PATH for every recipe.
+export PATH := $(if $(findstring /,$(UV)),$(patsubst %/,%,$(dir $(UV))):)$(PATH)
 # The CV-005 CodeScene contracts live in shared-actions and run from a full
 # commit, so a fix is a pin bump. `.github/cv005.toml` holds this repository's
 # only parameters.
@@ -26,8 +29,11 @@ RUFF := $(UV_GATE) run -- ruff
 TYPOS_VERSION ?= 1.48.0
 TYPOS := $(UV_GATE) tool --from typos@$(TYPOS_VERSION) -- typos
 
-.PHONY: help all clean build build-release lint fmt check-fmt \
+.PHONY: prepare help all clean build build-release lint fmt check-fmt \
         markdownlint nixie spelling test typecheck $(TOOLS) $(VENV_TOOLS) test-workflow-contracts
+
+prepare: ## Install the locked development environment, offline first
+	$(UV_GATE) prepare --group dev
 
 .DEFAULT_GOAL := all
 
@@ -36,8 +42,7 @@ test-workflow-contracts: ## Check the CV-005 CodeScene workflow contracts
 
 all: build check-fmt lint typecheck test test-workflow-contracts
 
-build: uv ## Build virtual-env and install deps
-	$(UV_GATE) prepare --group dev
+build: uv prepare ## Build virtual-env and install deps
 
 build-release: ## Build artefacts (sdist & wheel)
 	python -m build --sdist --wheel
@@ -71,7 +76,7 @@ endif
 
 ifneq ($(strip $(VENV_TOOLS)),)
 .PHONY: $(VENV_TOOLS)
-$(VENV_TOOLS): ## Verify required CLI tools in venv
+$(VENV_TOOLS): prepare ## Verify required CLI tools in venv
 	$(call ensure_tool_venv,$@)
 endif
 
@@ -97,7 +102,7 @@ markdownlint: $(MDLINT) ## Lint Markdown files
 	$(MDLINT) '**/*.md'
 	+$(MAKE) spelling
 
-spelling: ## Enforce en-GB-oxendict spelling in Markdown prose
+spelling: prepare ## Enforce en-GB-oxendict spelling in Markdown prose
 	@$(UV_GATE) run -- python scripts/generate_typos_config.py
 	@find . -type f -name '*.md' -not -path './.venv/*' -print0 | \
 		xargs -0 -r $(TYPOS) --config typos.toml --force-exclude
