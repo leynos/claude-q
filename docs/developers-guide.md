@@ -12,3 +12,16 @@ later) and `markdownlint-cli2` must be on `PATH`. Continuous Integration (CI)
 installs `mdtablefix` 0.6.1 through the shared `install-mdtablefix` action and
 lints through the pinned `markdownlint-cli2-action`. `.markdownlint-cli2.jsonc`
 holds the rules, the ignores and `"gitignore": true`.
+
+## Running uv through the helper
+
+Every `uv` call in the Makefile goes through `scripts/uv_gate.py`, a copy of
+the helper in
+[shared-actions](https://github.com/leynos/shared-actions/tree/main/uv_gate).
+It cleans the environment, uses the global uv cache, runs offline first, and
+goes online at most once, only when uv proves a cache entry, a managed Python
+or a Git source is missing. Do not edit it: the concordat `uv-gate-baseline`
+rule audits its digest. `make prepare` installs the locked environment, and the
+gates that need it depend on it. A Git-sourced tool that is not cached yet
+needs uv 0.11.28 or newer; with an older uv, run the tool once with `uvx` to
+warm the cache. Run `uv lock` by hand to change `uv.lock`; the gates never do.
