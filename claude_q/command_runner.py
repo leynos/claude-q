@@ -119,6 +119,8 @@ def _builder_for(program: Program) -> typ.Callable[..., SafeCmd]:
 
 
 class _ContextKwargs(typ.TypedDict, total=False):
+    """Optional ``ExecutionContext`` arguments: working directory, environment, tags."""
+
     cwd: str
     env: dict[str, str]
     tags: dict[str, str]
