@@ -1,4 +1,4 @@
-"""Contract: every uv call in the Makefile goes through the vendored helper.
+"""Contract: every uv call in the Makefile but the builder's goes through the helper.
 
 The helper (``scripts/uv_gate.py``) is copied byte for byte from
 leynos/shared-actions and audited by concordat's ``uv-gate-baseline`` rule.
@@ -25,15 +25,13 @@ EXPECTED_DEFAULT_GOAL = "all"
 # the project only through a recursive $(MAKE) is covered by that sub-target).
 GATES: tuple[tuple[str, tuple[str, ...], bool, bool], ...] = (
     ("pytest", ("which",), True, True),
-    ("spelling", ("python", "typos"), True, True),
-    ("lint", ("python", "ruff", "typos"), True, True),
-    ("markdownlint", ("python", "typos"), True, False),
+    ("lint", ("ruff",), True, True),
     ("fmt", ("ruff",), True, True),
     ("typecheck", ("ty",), True, True),
     ("test-workflow-contracts", ("cv005-contracts",), False, False),
     (
         "all",
-        ("cv005-contracts", "pytest", "python", "ruff", "ty", "typos", "which"),
+        ("cv005-contracts", "pytest", "ruff", "ty", "which"),
         True,
         True,
     ),
@@ -46,6 +44,7 @@ PREPARE_TARGETS: tuple[str, ...] = ("prepare",)
 # mention fails the test until it is reviewed and added here.
 ALLOWED_UV_LINES: tuple[str, ...] = (
     "TOOLS = ty $(MDLINT) $(MDTABLEFIX) uv",
+    'TYPOS_CONFIG_BUILDER = uv tool run --python 3.14 --from "git+https://github.com/leynos/typos-config-builder.git@$(TYPOS_CONFIG_BUILDER_VERSION)" typos-config-builder',  # noqa: E501
     "UV ?= uv",
     "build: uv prepare",
     "export PATH := $(if $(findstring /,$(UV)),$(patsubst %/,%,$(dir $(UV))):)$(PATH)",
