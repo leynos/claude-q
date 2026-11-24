@@ -26,8 +26,12 @@ CV005_CONTRACTS_REF ?= 88977798a5c3bae1549afb99642529488c665276
 CV005_CONTRACTS = $(UV_GATE) tool --python 3.13 --from 'git+https://github.com/leynos/shared-actions@$(CV005_CONTRACTS_REF)\#subdirectory=packages/cv005-contracts' -- cv005-contracts
 
 RUFF := $(UV_GATE) run -- ruff
-TYPOS_VERSION ?= 1.48.0
-TYPOS := $(UV_GATE) tool --from typos@$(TYPOS_VERSION) -- typos
+# The one uv call outside the helper: the spelling baseline requires the
+# builder at a release tag, which the helper's SHA-only pin check refuses.
+TYPOS_CONFIG_BUILDER_VERSION ?= v0.1.4
+TYPOS_CONFIG_BUILDER = uv tool run --python 3.14 --from \
+	"git+https://github.com/leynos/typos-config-builder.git@$(TYPOS_CONFIG_BUILDER_VERSION)" \
+	typos-config-builder
 
 .PHONY: prepare help all clean build build-release lint fmt check-fmt \
         markdownlint nixie spelling test typecheck $(TOOLS) $(VENV_TOOLS) test-workflow-contracts
@@ -96,7 +100,7 @@ lint: build ## Run linters
 
 typecheck: build ## Run typechecking
 	$(UV_GATE) run -- ty --version
-	$(UV_GATE) run -- ty check --extra-search-path scripts
+	$(UV_GATE) run -- ty check
 
 # Interrogate scans each target recursively, subject to its default exclusions.
 INTERROGATE_VERSION ?= 1.7.0
@@ -130,10 +134,8 @@ markdownlint: $(MDLINT) ## Lint Markdown files
 	$(MDLINT) '**/*.md'
 	+$(MAKE) spelling
 
-spelling: prepare ## Enforce en-GB-oxendict spelling in Markdown prose
-	@$(UV_GATE) run -- python scripts/generate_typos_config.py
-	@find . -type f -name '*.md' -not -path './.venv/*' -print0 | \
-		xargs -0 -r $(TYPOS) --config typos.toml --force-exclude
+spelling: ## Enforce en-GB-oxendict spelling in prose
+	$(TYPOS_CONFIG_BUILDER) gate --repository .
 
 nixie: ## Validate Mermaid diagrams
 	$(call ensure_tool,nixie)
